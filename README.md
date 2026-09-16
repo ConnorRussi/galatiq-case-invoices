@@ -13,6 +13,12 @@ Acme Corp is a PE-backed manufacturing firm losing **$2M/year** on manual invoic
 
 Build a **multi-agent system** that automates the end-to-end invoice processing workflow. The system must run as a working prototype — not just designs or slides.
 
+> **Repository status:** this repository currently contains the case specification, sample invoice corpus, and an optional PDF fixture generator. The invoice-processing application itself has not been implemented yet.
+
+## Repository Documentation
+
+Start with [`docs/README.md`](docs/README.md) for a map of the current repository, actual and planned entry points, fixture-by-fixture test scenarios, the proposed runtime architecture, and an implementation roadmap. The documentation explicitly separates what exists today from what the case asks you to build.
+
 ## Workflow
 
 The system should handle four stages:
