@@ -1,6 +1,6 @@
 # Entry Points
 
-An entry point is any supported place where execution or data ingestion begins. Only one executable entry point exists today; the others below are specified or proposed.
+An entry point is any supported place where execution or data ingestion begins. The workspace-level orchestrator now exists, while its application workflow dependency is still planned.
 
 ## Entry-point map
 
@@ -11,9 +11,9 @@ An entry point is any supported place where execution or data ingestion begins. 
 | `data/generate_pdfs.py:create_messy_invoice()` | Present, internal | Called by the module guard | Writes `invoice_1012.pdf` |
 | `data/generate_pdfs.py:create_bulk_invoice()` | Present, internal | Called by the module guard | Writes `invoice_1013.pdf` |
 | Files in `data/invoices/` | Present data boundary | Future parser or manual inspection | Raw invoice content |
-| `main.py --invoice_path=...` | Specified, absent | Shell/user | Intended end-to-end processing result |
+| `../main.py --invoice_path=...` | Present orchestrator shell | Shell/user | Regenerates PDFs, resolves inputs, and delegates to the planned workflow |
 | Grok/xAI API | Specified, absent and optional | Future LLM adapter | Intended reasoning/structured output |
-| SQLite `inventory.db` | Specified, absent | Future validation tool | Intended stock lookup |
+| SQLite `inventory.sqlite` | Present locally, untracked | Future validation tool | Seeded stock truth; no application currently calls it |
 | `mock_payment(vendor, amount)` | Specified as a snippet, absent | Future payment stage | Intended simulated payment result |
 | UI | Evaluation expectation, absent | Human reviewer/operator | Intended understandable workflow |
 
@@ -65,19 +65,25 @@ Extension dispatch alone is insufficient:
 - XML introduces a distinct hierarchy and a non-USD currency.
 - PDF includes clean layout, OCR-like content, and repeated line items.
 
-## Specified CLI contract
+## CLI contract
 
 The README proposes:
 
 ```bash
-python main.py --invoice_path=data/invoices/invoice1.txt
+python ../main.py --invoice_path data/invoices/invoice_1001.txt --skip-pdf-generation
 ```
 
-This command currently fails because `main.py` and `invoice1.txt` do not exist. A usable implementation should preserve the option name but use a real path, for example:
+When no `--invoice_path` is supplied, the orchestrator regenerates and selects
+the three PDF fixtures. Relative invoice paths are resolved from the repository
+root. PDF generation can be bypassed when working with existing fixtures:
 
 ```bash
-python main.py --invoice_path data/invoices/invoice_1001.txt
+python ../main.py --invoice_path data/invoices/invoice_1001.txt --skip-pdf-generation
 ```
+
+The CLI currently stops at its explicit workflow import boundary because
+`src/invoice_system/workflow.py` has not been implemented. See the
+[ingestion pipeline plan](ingestion-pipeline-plan.md) for the next slice.
 
 A recommended exit-code contract is:
 

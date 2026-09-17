@@ -54,7 +54,7 @@ Below is a starter schema and seed data that covers the core items referenced ac
 ```python
 import sqlite3
 
-conn = sqlite3.connect('inventory.db')  # Persist to file so all agents can access it
+conn = sqlite3.connect('inventory.sqlite')  # Persist to file so all agents can access it
 cursor = conn.cursor()
 
 cursor.execute('CREATE TABLE IF NOT EXISTS inventory (item TEXT PRIMARY KEY, stock INTEGER)')

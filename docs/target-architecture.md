@@ -4,7 +4,18 @@ This is a recommended implementation of the case brief. None of the components i
 
 ## Design goal
 
-Use deterministic code for parsing known structured formats, arithmetic, database access, policy enforcement, and payments. Use an LLM only where ambiguity or explanation benefits from reasoning, behind an interface with an offline deterministic fallback. This keeps the required local prototype repeatable.
+Build a genuine multi-agent system in which specialized agents own different steps of the invoice workflow. Agents decide how to interpret documents, what evidence to gather, and what outcome the evidence supports. Deterministic tools perform exact operations such as arithmetic, row aggregation, parameterized database access, schema checks, audit writes, and payment idempotency.
+
+The distinction is intentional:
+
+| Agents reason about | Tools establish |
+|---|---|
+| What a messy document most likely means | Extracted text and parsed file content |
+| What evidence is needed to validate a claim | Exact totals and grouped quantities |
+| Whether findings justify approval, rejection, or review | Trusted SQLite records |
+| Whether another agent's decision is complete and consistent | Policy evaluation and payment guards |
+
+The planned implementation uses LangGraph to route typed state between four agents: Ingestion, Validation, Approval, and Critic. See [Agent contracts](agent-contracts.md) for their exact boundaries.
 
 ## Components
 
@@ -21,32 +32,34 @@ flowchart LR
     end
 
     subgraph Agents
-        ING[Ingestion]
-        VAL[Validation]
-        APR[Approval]
-        CRIT[Critic]
+        ING[Ingestion Agent]
+        VAL[Validation ReAct Agent]
+        APR[Approval Agent]
+        CRIT[Critic Agent]
     end
 
     subgraph Tools
         PARSE[Format parsers]
         CALC[Arithmetic checker]
         LOOKUP[Inventory lookup]
-        RISK[Policy/risk rules]
+        RISK[Policy evaluator]
         PAY[Idempotent mock payment]
     end
 
     subgraph Storage
-        INVDB[(inventory.db)]
+        INVDB[(inventory.sqlite)]
         RUNDB[(run/audit store)]
     end
 
     CLI --> WF
     UI --> WF
-    WF --> ING --> PARSE
+    WF --> ING
+    ING --> PARSE
     WF --> VAL
     VAL --> CALC
     VAL --> LOOKUP --> INVDB
-    WF --> APR --> RISK
+    WF --> APR
+    APR --> RISK
     APR <--> CRIT
     WF --> PAY
     WF --> AUDIT --> RUNDB
@@ -62,10 +75,17 @@ classDiagram
       +string run_id
       +string source_path
       +string source_hash
-      +Invoice invoice
+      +RawExtraction raw_extraction
+      +Invoice normalized_invoice
       +ExtractionIssue[] extraction_issues
-      +ValidationFinding[] findings
-      +ApprovalDecision decision
+      +ConsolidatedItem[] consolidated_items
+      +ValidationFinding[] validation_findings
+      +ApprovalDecision proposed_decision
+      +CritiqueResult critique
+      +ApprovalDecision final_decision
+      +int ingestion_attempts
+      +int approval_revisions
+      +HumanReview human_review
       +PaymentResult payment
       +Event[] events
     }
@@ -114,6 +134,22 @@ classDiagram
 
 Use `Decimal`, not binary floating point, for money. Preserve source text and declared values alongside normalized values.
 
+The internal handoff should be a validated Pydantic/LangGraph state object. JSON is the persisted and external representation, not loose prose that each agent must reinterpret.
+
+## Normalization and typo policy
+
+Ingestion must preserve both what the document says and what the system believes it means.
+
+| Case | Treatment |
+|---|---|
+| Formatting-only change or controlled alias, such as `Widget A` → `WidgetA` | Normalize automatically and record the transformation |
+| Strong but non-certain OCR correction, such as `2O26` → `2026` | Propose the correction, attach confidence/evidence, and review when below threshold |
+| Unknown product, such as `WidgetC` | Preserve it and report it; never guess a replacement |
+| Invalid business value, such as quantity `-5` | Preserve it and create a blocking finding; never “repair” it to `5` |
+| Vendor spelling difference | Preserve the source name and reconcile against a future vendor master; do not silently change legal identity |
+
+A typo alone is not a rejection. An unresolved ambiguity becomes `needs_review`; a clearly invalid value becomes a validation finding.
+
 ## Workflow states
 
 ```mermaid
@@ -121,12 +157,11 @@ stateDiagram-v2
     [*] --> Received
     Received --> Extracted: parser succeeds
     Received --> Failed: unreadable / unsupported
-    Extracted --> NeedsReview: required field ambiguous
+    Extracted --> NeedsReview: required field remains ambiguous
     Extracted --> Validated: schema complete
-    Validated --> Rejected: blocking validation finding
-    Validated --> ApprovalReview: no blocking finding
+    Validated --> ApprovalReview: findings complete
     ApprovalReview --> NeedsReview: critic cannot resolve ambiguity
-    ApprovalReview --> Rejected: policy rejects
+    ApprovalReview --> Rejected: evidence and policy reject
     ApprovalReview --> Approved: policy approves
     Approved --> Paid: mock payment succeeds
     Approved --> Failed: payment infrastructure error
@@ -146,10 +181,12 @@ stateDiagram-v2
 - Extract PDF text locally; use an OCR fallback only when necessary.
 - Parse free-form text with rules plus optional structured LLM output.
 - Normalize dates, currency, vendor text, and item aliases while preserving originals.
+- Return raw extraction, normalized values, transformations, confidence, and unresolved issues.
 - Validate the result against a strict schema and retry/correct at most a bounded number of times.
 
 ### 2. Validation
 
+- Run as a bounded ReAct agent that decides which trusted evidence it needs.
 - Reject missing required fields and non-positive quantities/prices.
 - Recompute line amounts, subtotal, tax, fees, and total.
 - Aggregate repeated normalized item names before checking inventory.
@@ -157,6 +194,8 @@ stateDiagram-v2
 - Detect duplicate `(vendor, invoice_number, revision)` or identical source hashes.
 - Apply currency and date policies.
 - Emit stable finding codes and evidence instead of a single boolean.
+- Continue after individual failures so the final report contains every applicable issue.
+- Request one re-ingestion only when evidence suggests extraction was wrong, not merely because the invoice is invalid.
 
 Inventory validation should be read-only. Reserving or decrementing stock is a separate transactional concern and is not explicitly required by the case.
 
@@ -169,7 +208,9 @@ Start with deterministic gates. A sensible initial policy is:
 - Suspicious urgency, wire-transfer language, unknown vendor, or relative/overdue dates: risk finding.
 - Ambiguous extraction or unsupported currency: human review.
 
-The approval agent produces structured reasons. The critic checks whether each finding was addressed and whether the decision contradicts policy. Allow one bounded revision; an unresolvable disagreement becomes `needs_review`, preventing an infinite reflection loop.
+Every completed validation report goes to the Approval Agent, including reports with blocking findings. The Approval Agent, rather than the graph router, owns the business disposition: `approved`, `rejected`, or `needs_review`.
+
+The Approval Agent produces structured reasons and maps each decision back to findings. The Critic Agent checks whether every finding was addressed, evidence was invented, or the decision contradicts policy. Allow one bounded revision; an unresolved disagreement becomes `needs_review`, preventing an infinite reflection loop.
 
 ### 4. Payment
 
@@ -196,23 +237,23 @@ sequenceDiagram
 
     User->>CLI: submit invoice path
     CLI->>Workflow: start run
-    Workflow->>Ingest: extract canonical invoice
-    Ingest-->>Workflow: invoice + extraction issues
-    Workflow->>Validate: schema, totals, inventory, duplicate checks
-    Validate-->>Workflow: findings
-    alt blocking finding
-        Workflow-->>CLI: rejected / needs_review with evidence
-    else eligible for approval
-        Workflow->>Approve: propose decision
-        Approve->>Critic: decision + evidence
-        Critic-->>Approve: accept or one revision request
-        Approve-->>Workflow: final structured decision
-        alt approved
-            Workflow->>Payment: pay with idempotency key
-            Payment-->>Workflow: simulated transaction result
-        end
-        Workflow-->>CLI: complete structured result
+    Workflow->>Ingest: extract raw + normalized invoice
+    Ingest-->>Workflow: invoice + transformations + issues
+    Workflow->>Validate: investigate all claims
+    Validate-->>Workflow: complete evidence-backed findings
+    Workflow->>Approve: invoice + issues + findings + policy
+    Approve->>Critic: proposed structured decision
+    Critic-->>Approve: accept or one revision request
+    Approve-->>Workflow: final structured decision
+    alt approved
+        Workflow->>Payment: pay with idempotency key
+        Payment-->>Workflow: simulated transaction result
+    else rejected
+        Workflow->>Workflow: write rejection audit
+    else needs human review
+        Workflow-->>CLI: pause with review payload
     end
+    Workflow-->>CLI: complete structured result
 ```
 
 ## Suggested code boundaries
@@ -243,7 +284,7 @@ scripts/init_inventory.py
 tests/
 ```
 
-Framework choice is secondary to clear boundaries. A custom state machine is sufficient for this small flow; LangGraph becomes useful if checkpointing, branching, and resumable human review are implemented.
+LangGraph is the selected orchestration approach because this design needs conditional routing, bounded agent loops, checkpoints, and resumable human review. Agent prompts and models remain behind interfaces so they can be tested independently.
 
 ## Trust boundaries
 

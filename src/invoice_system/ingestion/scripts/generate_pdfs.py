@@ -3,11 +3,12 @@ Optional utility to generate PDF versions of the sample invoices.
 
 Requires: pip install fpdf2
 
-Usage: python data/generate_pdfs.py
+Usage: python src/invoice_system/ingestion/scripts/generate_pdfs.py
 """
 
 import os
 import sys
+from pathlib import Path
 
 try:
     from fpdf import FPDF
@@ -15,7 +16,8 @@ except ImportError:
     print("fpdf2 is required to generate PDFs: pip install fpdf2")
     sys.exit(1)
 
-OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "invoices")
+PROJECT_ROOT = os.fspath(Path(__file__).resolve().parents[4])
+OUTPUT_DIR = os.path.join(PROJECT_ROOT, "data", "invoices")
 
 
 def create_clean_invoice():

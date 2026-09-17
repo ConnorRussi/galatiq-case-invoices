@@ -1,0 +1,8 @@
+# Runtime dependencies for the ingestion agent only.
+fpdf2>=2.8,<3
+google-genai>=2,<3
+langgraph>=1,<2
+langsmith>=0.4,<1
+pdfplumber>=0.11,<1
+pydantic>=2.12,<3
+python-dotenv>=1.1,<2

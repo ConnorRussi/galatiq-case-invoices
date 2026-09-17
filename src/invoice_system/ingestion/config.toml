@@ -1,0 +1,20 @@
+[models]
+provider = "gemini"
+flash_model = "gemini-3.8-flash"
+pro_model = "gemini-2.5-pro"
+
+[limits]
+max_total_model_requests = 7
+max_interpret_attempts = 2
+max_flash_critic_runs = 2
+max_flash_revisions = 1
+max_pro_escalations = 1
+max_graph_steps = 14
+max_transport_retries_per_call = 1
+request_timeout_seconds = 45
+
+[documents]
+max_file_bytes = 10000000
+max_pdf_pages = 25
+max_extracted_characters = 100000
+minimum_alphanumeric_characters = 20

@@ -11,6 +11,7 @@ The repository is on branch `main`. At the documented baseline, the local branch
 ```text
 galatiq-case-invoices/
 ├── README.md                  # Case brief and requested behavior
+├── inventory.sqlite           # Local seeded DB; currently untracked
 ├── data/
 │   ├── generate_pdfs.py       # Optional PDF-fixture generator
 │   └── invoices/              # 20 fixture files, 16 invoice numbers
@@ -52,11 +53,14 @@ flowchart TB
         G[PDF fixture generator]
     end
 
+    subgraph Local["Present locally, not tracked"]
+        DB[(inventory.sqlite<br/>4 seeded rows)]
+    end
+
     subgraph Missing["Required, but not implemented"]
         CLI[main.py CLI]
         ING[Multi-format ingestion]
         MODEL[Structured invoice model]
-        DB[(SQLite inventory.db)]
         VAL[Validation agent/tools]
         APP[Approval + critique loop]
         PAY[Mock payment tool]
@@ -76,7 +80,7 @@ Specifically, there is no:
 - `main.py` even though the README shows `python main.py --invoice_path=...`;
 - Python package or reusable domain model;
 - `requirements.txt`, `pyproject.toml`, lockfile, or environment template;
-- checked-in `inventory.db` or script/migration that initializes it;
+- checked-in inventory database or script/migration that initializes it (the local workspace currently has an untracked, correctly seeded `inventory.sqlite`, but it is not yet reproducible from repository code);
 - parser for TXT, JSON, CSV, XML, or PDF;
 - validation, approval, reflection, payment, or rejection implementation;
 - API server, web interface, or desktop interface;
@@ -118,6 +122,6 @@ sequenceDiagram
 
 - The repository Markdown and fixtures are UTF-8; tools that assume a legacy Windows code page can display punctuation such as em dashes incorrectly.
 - The README's example path `data/invoices/invoice1.txt` does not exist; actual names follow `invoice_1001.txt` through `invoice_1016.json` with gaps by format.
-- The starter SQLite snippet is documentation only. Running it repeatedly without conflict handling would fail after the first insert because `item` is a primary key.
+- The local `inventory.sqlite` has the starter `inventory(item TEXT PRIMARY KEY, stock INTEGER)` schema and four expected rows. There is still no checked-in initializer; running the README snippet repeatedly without conflict handling would fail after the first insert.
 - Regenerating PDFs is a write operation and replaces the three existing files.
 - `invoice_1013.pdf` intentionally emits a grand total with an unexplained extra `$50`; the JSON fixture contains the same declared-total discrepancy. See [Invoice corpus](invoice-corpus.md).
