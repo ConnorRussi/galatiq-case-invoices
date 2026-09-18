@@ -46,6 +46,15 @@ def write_artifact(directory: Path, filename: str, data: object) -> None:
     write_json(directory / filename, data)
 
 
+def append_event(directory: Path, stage: str, event: str, **details: object) -> None:
+    """Append a stage event using the same schema as ingestion run logs."""
+
+    payload = {"timestamp": now_iso(), "stage": stage, "event": event}
+    payload.update({key: _jsonable(value) for key, value in details.items() if value is not None})
+    with (directory / "events.jsonl").open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
+
+
 def _jsonable(data: object) -> object:
     if isinstance(data, BaseModel):
         return data.model_dump(mode="json")
@@ -83,10 +92,7 @@ class IngestionRunLogger:
         return self.context.run_dir
 
     def log_event(self, stage: str, event: str, **details: object) -> None:
-        payload = {"timestamp": now_iso(), "stage": stage, "event": event}
-        payload.update({key: _jsonable(value) for key, value in details.items() if value is not None})
-        with (self.run_dir / "events.jsonl").open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
+        append_event(self.run_dir, stage, event, **details)
 
     def save_source(self, source_document: BaseModel) -> None:
         write_artifact(self.run_dir, "source.json", source_document)

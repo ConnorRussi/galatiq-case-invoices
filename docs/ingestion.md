@@ -1,0 +1,46 @@
+# Ingestion domain
+
+## Responsibility
+
+Ingestion turns one supported document into an evidence-preserving
+`IngestionResult`. The reader owns extraction only; the model owns semantic
+normalization; the critic checks fidelity; the gate decides the ingestion
+terminal status. The separate Phase 1 validation graph consumes this result.
+
+## Stage behavior
+
+1. `read_source` accepts PDF, TXT/Markdown, CSV, JSON, or XML. It uses strict
+   UTF-8 for text-like inputs, preserves source text, and emits immutable
+   [`SourceDocument`](contracts.md#source-and-normalization-contracts) chunks.
+2. `normalize` sends the source and schema to the configured model. It does not
+   derive values that the source does not support. Field evidence is separate
+   from invoice claims.
+3. `critic` reviews the candidate against the same source and policy. It can
+   identify incorrect values, missing information, unsupported inference,
+   structure mismatches, and evidence problems.
+4. `revise` may run twice. A revision receives the original source, current
+   candidate, and critique; it does not mutate the source.
+5. `gate` returns `accept` when the final critique is clean, `needs_review`
+   when issues remain after the revision budget, or `technical_failure` when
+   execution fails.
+
+## Important invariants
+
+- Source chunks are immutable and remain available in the final result.
+- JSON/XML are syntax-checked and retained as source text rather than reserialized.
+- CSV header and row structure is preserved.
+- Blank or textless PDF pages fail conservatively because OCR is not installed.
+- A technical failure never fabricates an invoice.
+- Critique must not turn formatting-equivalent or policy-permitted values into
+  false corrections; regression tests enforce this.
+- Validation receives a detached snapshot of the result and never rewrites the
+  ingestion invoice.
+
+## Main files and tests
+
+- Implementation: [`src/invoice_system/ingestion/`](../src/invoice_system/ingestion/)
+- Policy: [`normalization_policy.md`](../src/invoice_system/ingestion/normalization_policy.md)
+- Tests: [`test_ingestion_regressions.py`](../tests/test_ingestion_regressions.py),
+  [`test_normalization_policy.py`](../tests/test_normalization_policy.py)
+- Workflow: [LangGraph](langgraph.md)
+- Shapes: [Contracts](contracts.md)
