@@ -1,5 +1,46 @@
 # Galatiq Case: Invoice Processing Automation
 
+## Current implementation: Phase 1
+
+The active application reads one invoice, preserves its source, and asks an LLM
+to normalize the document's claims with separate source evidence. The graph is
+exactly `START -> read_source -> normalize -> END`.
+
+Supported sources: PDF (native pdfplumber text), TXT, Markdown, CSV, JSON, XML.
+Source chunks are immutable. CSV headers and rows remain in order; JSON and XML
+are checked for syntax and retained as source text. No invoice fields are parsed
+by the reader. Text is decoded as UTF-8 with optional BOM; invalid encoding fails
+explicitly. PDFs with a page lacking meaningful text fail with an OCR-required
+message; OCR is not installed by this application.
+
+Install with Python 3.13 or later:
+
+```bash
+python -m pip install -e ".[ingestion]"
+python main.py --invoice_path=data/invoices/invoice_1001.txt
+```
+
+Each CLI run creates `runs/<run_id>/`. After reading, `source.json` is saved before
+normalization begins. On success, `normalized.json` contains `{invoice, evidence}`
+and stdout prints just the invoice as readable JSON. Dates serialize as ISO dates;
+Decimal values serialize as strings to preserve precision. Errors return exit
+code 1 and save a traceback in `error.log`; they never create a fake invoice.
+
+Copy `.env.example` to `.env` and set `TAMUS_AI_CHAT_API_KEY` and
+`TAMUS_AI_CHAT_MODEL` to your institution's key and exact model ID. The endpoint
+defaults to `https://chat-api.tamu.ai`; override `TAMUS_AI_CHAT_API_ENDPOINT` if
+your institution uses another endpoint. The runtime calls `/api/chat/completions`
+with bearer authentication. It supplies the JSON schema in the system message
+and checks the returned JSON with Pydantic. Server-side schema enforcement is
+not assumed. Invalid output raises a technical error without a correction loop.
+Set `LANGSMITH_TRACING=true` and `LANGSMITH_API_KEY` to enable optional tracing.
+See [PHASE1_HANDOFF.md](PHASE1_HANDOFF.md) for exact schemas, prompt, decisions,
+and the verification record.
+
+There is no critic, revision loop, gate, inventory access, arithmetic validation,
+approval, payment, or evaluation framework. The original case below describes
+future work and does not expand the scope of this checkpoint.
+
 ## Background
 
 Acme Corp is a PE-backed manufacturing firm losing **$2M/year** on manual invoice processing. Invoices arrive via email as PDFs in messy formats with frequent errors. Staff manually extract data, validate against a legacy inventory database (inconsistent), obtain VP approval (via email chains), and process payment (via a banking API).
@@ -13,11 +54,12 @@ Acme Corp is a PE-backed manufacturing firm losing **$2M/year** on manual invoic
 
 Build a **multi-agent system** that automates the end-to-end invoice processing workflow. The system must run as a working prototype — not just designs or slides.
 
-> **Repository status:** this repository currently contains the case specification, sample invoice corpus, and an optional PDF fixture generator. The invoice-processing application itself has not been implemented yet.
+> **Repository status:** Phase 1 ingestion is implemented; see the current implementation notes above.
 
 ## Repository Documentation
 
-Start with [`docs/README.md`](docs/README.md) for a map of the current repository, actual and planned entry points, fixture-by-fixture test scenarios, the proposed runtime architecture, and an implementation roadmap. The documentation explicitly separates what exists today from what the case asks you to build.
+The active implementation lives in `src/invoice_system/ingestion/`, with the shared
+LLM runtime in `src/invoice_system/agent_runtime.py` and the CLI in `main.py`.
 
 ## Workflow
 
