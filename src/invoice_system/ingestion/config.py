@@ -8,7 +8,6 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Literal
 
 
 class _ConfigModel(BaseModel):
@@ -16,19 +15,10 @@ class _ConfigModel(BaseModel):
 
 
 class ModelSettings(_ConfigModel):
-    provider: Literal["gemini", "grok"] = "gemini"
-    flash_model: str = "gemini-3.8-flash"
-    pro_model: str = "gemini-2.5-pro"
+    flash_model: str = "protected.gpt-4.1-mini"
 
 
 class LimitSettings(_ConfigModel):
-    max_total_model_requests: int = Field(default=7, ge=1)
-    max_interpret_attempts: int = Field(default=2, ge=1)
-    max_flash_critic_runs: int = Field(default=2, ge=0)
-    max_flash_revisions: int = Field(default=1, ge=0, le=1)
-    max_pro_escalations: int = Field(default=1, ge=0, le=1)
-    max_graph_steps: int = Field(default=14, ge=4)
-    max_transport_retries_per_call: int = Field(default=1, ge=0)
     request_timeout_seconds: int = Field(default=45, ge=1)
 
 class DocumentSettings(_ConfigModel):
@@ -51,7 +41,11 @@ def load_settings(path: Path | None = None) -> IngestionSettings:
     with config_path.open("rb") as handle:
         payload = tomllib.load(handle)
 
-    for section, schema in (("models", ModelSettings), ("limits", LimitSettings), ("documents", DocumentSettings)):
+    for section, schema in (
+        ("models", ModelSettings),
+        ("limits", LimitSettings),
+        ("documents", DocumentSettings),
+    ):
         for name in schema.model_fields:
             override = os.getenv(f"INGESTION_{section}_{name}".upper())
             if override is not None:
@@ -59,5 +53,9 @@ def load_settings(path: Path | None = None) -> IngestionSettings:
     return IngestionSettings.model_validate(payload)
 
 
-def get_gemini_api_key() -> str | None:
-    return os.getenv("GEMINI_API_KEY")
+def get_tamu_api_key() -> str | None:
+    return os.getenv("TAMU_CHAT_API_KEY")
+
+
+def get_tamu_base_url() -> str | None:
+    return os.getenv("TAMU_CHAT_BASE_URL")

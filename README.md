@@ -13,13 +13,18 @@ Acme Corp is a PE-backed manufacturing firm losing **$2M/year** on manual invoic
 
 Build a **multi-agent system** that automates the end-to-end invoice processing workflow. The system must run as a working prototype — not just designs or slides.
 
-> **Repository status:** this repository currently contains the case specification, sample invoice corpus, and an optional PDF fixture generator. The invoice-processing application itself has not been implemented yet.
+> **Repository status:** the active implementation is a deliberately narrow ingestion POC: one PDF/TXT/JSON/CSV/XML source with native text, one structured TAMU extraction request, one schema gate, and human-readable run artifacts. Validation is separate; approval and payment are not part of the POC.
 
 ## Repository Documentation
 
-Start with [`docs/README.md`](docs/README.md) for a map of the current repository, actual and planned entry points, fixture-by-fixture test scenarios, the proposed runtime architecture, and an implementation roadmap. The documentation explicitly separates what exists today from what the case asks you to build.
+Start with [`Cdocs/README.md`](Cdocs/README.md) for the current executable boundary. The material in `docs/` remains case and planning background, not the active runtime contract.
 
 ## Workflow
+
+The ingestion POC uses TAMU AI through its OpenAI-compatible gateway. Configure
+`TAMU_CHAT_API_KEY` and `TAMU_CHAT_BASE_URL` in the workspace `.env`; its model ID is configured
+in `src/invoice_system/ingestion/config.toml`. There are no alternate providers, model retries,
+critics, revisions, or deterministic product/identifier normalizers in the active ingestion path.
 
 The system should handle four stages:
 
@@ -106,9 +111,13 @@ The system should be executable from the command line:
 
 ```bash
 python main.py --invoice_path=data/invoices/invoice1.txt
+# Review one source and its persisted extraction/result JSON files
+python main.py --ingest-file=data/invoices/invoice_1001.txt
 ```
 
-Output should include structured logs and results.
+The single-file review command prints the result and the paths to its
+`extraction.json` and `result.json` audit snapshots. `--review-file` is an
+equivalent spelling of `--ingest-file`.
 
 ## Evaluation Criteria
 

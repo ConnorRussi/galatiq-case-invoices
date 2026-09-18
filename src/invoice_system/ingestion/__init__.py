@@ -1,6 +1,8 @@
-"""The self-contained, evidence-preserving invoice-ingestion agent boundary."""
+"""Public boundary for the evidence-preserving invoice-ingestion agent."""
 
 from .models import BatchResult, IngestionResult
-from .workflow import run_pipeline
+from .ingest import ingest, run_pipeline
 
-__all__ = ["BatchResult", "IngestionResult", "run_pipeline"]
+# ``run_pipeline`` remains as a compatibility alias for downstream callers;
+# new application code should use the clearer ``ingest`` entry point.
+__all__ = ["BatchResult", "IngestionResult", "ingest", "run_pipeline"]
