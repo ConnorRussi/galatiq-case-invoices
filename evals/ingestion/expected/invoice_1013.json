@@ -11,16 +11,75 @@
   "tax_amount": "1472.80",
   "invoice_total": "22562.80",
   "additional_fields": {
-    "payment_terms": "Net 60"
+    "payment_terms": "Net 60",
+    "vendor_address": "500 Commerce Blvd, Detroit, MI 48201"
   },
   "items": [
-    {"item_name": "WidgetA", "quantity": "15", "unit_price": "250.00", "line_amount": "3750.00"},
-    {"item_name": "WidgetB", "quantity": "10", "unit_price": "500.00", "line_amount": "5000.00"},
-    {"item_name": "GadgetX", "quantity": "5", "unit_price": "750.00", "line_amount": "3750.00"},
-    {"item_name": "WidgetA", "quantity": "5", "unit_price": "240.00", "line_amount": "1200.00"},
-    {"item_name": "WidgetB", "quantity": "8", "unit_price": "480.00", "line_amount": "3840.00"},
-    {"item_name": "GadgetX", "quantity": "3", "unit_price": "750.00", "line_amount": "2250.00"},
-    {"item_name": "WidgetA", "quantity": "2", "unit_price": "250.00", "line_amount": "500.00"},
-    {"item_name": "GadgetX", "quantity": "1", "unit_price": "750.00", "line_amount": "750.00"}
-  ]
+    {
+      "item_name": "WidgetA",
+      "quantity": "15",
+      "unit_price": "250.00",
+      "line_amount": "3750.00"
+    },
+    {
+      "item_name": "WidgetB",
+      "quantity": "10",
+      "unit_price": "500.00",
+      "line_amount": "5000.00"
+    },
+    {
+      "item_name": "GadgetX",
+      "quantity": "5",
+      "unit_price": "750.00",
+      "line_amount": "3750.00"
+    },
+    {
+      "item_name": "WidgetA",
+      "quantity": "5",
+      "unit_price": "240.00",
+      "line_amount": "1200.00",
+      "additional_fields": {
+        "notes": "Volume discount"
+      }
+    },
+    {
+      "item_name": "WidgetB",
+      "quantity": "8",
+      "unit_price": "480.00",
+      "line_amount": "3840.00",
+      "additional_fields": {
+        "notes": "Volume discount"
+      }
+    },
+    {
+      "item_name": "GadgetX",
+      "quantity": "3",
+      "unit_price": "750.00",
+      "line_amount": "2250.00",
+      "additional_fields": {
+        "notes": "Expedited"
+      }
+    },
+    {
+      "item_name": "WidgetA",
+      "quantity": "2",
+      "unit_price": "250.00",
+      "line_amount": "500.00",
+      "additional_fields": {
+        "notes": "Replacement"
+      }
+    },
+    {
+      "item_name": "GadgetX",
+      "quantity": "1",
+      "unit_price": "750.00",
+      "line_amount": "750.00",
+      "additional_fields": {
+        "notes": "Sample"
+      }
+    }
+  ],
+  "shipping": null,
+  "discount": null,
+  "amount_due": null
 }

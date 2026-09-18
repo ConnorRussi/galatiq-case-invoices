@@ -14,7 +14,20 @@
     "payment_terms": "Net 30"
   },
   "items": [
-    {"item_name": "WidgetA", "quantity": "4", "unit_price": "225.00"},
-    {"item_name": "WidgetB", "quantity": "6", "unit_price": "475.00"}
-  ]
+    {
+      "item_name": "WidgetA",
+      "quantity": "4",
+      "unit_price": "225.00",
+      "line_amount": null
+    },
+    {
+      "item_name": "WidgetB",
+      "quantity": "6",
+      "unit_price": "475.00",
+      "line_amount": null
+    }
+  ],
+  "shipping": null,
+  "discount": null,
+  "amount_due": null
 }

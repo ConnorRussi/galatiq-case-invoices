@@ -27,6 +27,47 @@ def invoke_structured[T: BaseModel](
             "Set TAMUS_AI_CHAT_API_KEY and TAMUS_AI_CHAT_MODEL in the environment or .env"
         )
     endpoint = os.getenv("TAMUS_AI_CHAT_API_ENDPOINT", "https://chat-api.tamu.ai").rstrip("/")
+    try:
+        prompt = system_prompt
+        for schema_attempt in range(2):
+            text = _request_structured_text(
+                api_key=api_key,
+                endpoint=endpoint,
+                model=model,
+                system_prompt=prompt,
+                content=content,
+                output_model=output_model,
+            )
+            try:
+                return output_model.model_validate_json(text)
+            except ValidationError as exc:
+                if schema_attempt:
+                    raise ModelInvocationError(
+                        f"TAMUS returned invalid structured output after schema retry: {exc}"
+                    ) from exc
+                logger.warning("[model] Structured output failed schema validation; requesting one correction")
+                prompt = (
+                    system_prompt
+                    + "\n\nYour previous response did not match the required schema. "
+                    "Return a corrected complete JSON object only; preserve the source claims and "
+                    "do not omit unrelated valid fields. Validation error:\n"
+                    + str(exc)
+                )
+    except ModelInvocationError:
+        raise
+    except Exception as exc:
+        raise ModelInvocationError(f"TAMUS invocation failed ({model}): {exc}") from exc
+
+
+def _request_structured_text[T: BaseModel](
+    *,
+    api_key: str,
+    endpoint: str,
+    model: str,
+    system_prompt: str,
+    content: str,
+    output_model: type[T],
+) -> str:
     schema_instruction = (
         "\nReturn only one JSON object matching this JSON Schema. "
         "Do not include markdown fences or commentary.\n"
@@ -41,38 +82,31 @@ def invoke_structured[T: BaseModel](
         ],
     }
     # The TAMUS quickstart does not promise server-side JSON schema enforcement.
-    try:
-        with httpx.Client(timeout=120) as client:
-            for attempt in range(3):
-                try:
-                    response = client.post(
-                        endpoint + "/api/chat/completions",
-                        headers={"Authorization": f"Bearer {api_key}"},
-                        json=payload,
-                    )
-                except httpx.TransportError:
-                    if attempt == 2:
-                        raise
-                    logger.warning("[model] Transient transport error; retrying request")
-                    time.sleep(2 ** attempt)
-                    continue
-                if response.status_code in {429, 500, 502, 503, 504} and attempt < 2:
-                    logger.warning("[model] HTTP %s; retrying request", response.status_code)
-                    time.sleep(2 ** attempt)
-                    continue
-                response.raise_for_status()
-                break
-        body = response.json()
-        choice = body["choices"][0]
-        if choice.get("finish_reason") not in {None, "stop"}:
-            raise ModelInvocationError(f"TAMUS response did not finish normally: {choice['finish_reason']}")
-        text = choice["message"]["content"]
-        if not isinstance(text, str) or not text.strip():
-            raise ModelInvocationError("TAMUS returned no structured text")
-        return output_model.model_validate_json(text)
-    except ModelInvocationError:
-        raise
-    except ValidationError as exc:
-        raise ModelInvocationError(f"TAMUS returned invalid structured output: {exc}") from exc
-    except Exception as exc:
-        raise ModelInvocationError(f"TAMUS invocation failed ({model}): {exc}") from exc
+    with httpx.Client(timeout=120) as client:
+        for attempt in range(3):
+            try:
+                response = client.post(
+                    endpoint + "/api/chat/completions",
+                    headers={"Authorization": f"Bearer {api_key}"},
+                    json=payload,
+                )
+            except httpx.TransportError:
+                if attempt == 2:
+                    raise
+                logger.warning("[model] Transient transport error; retrying request")
+                time.sleep(2 ** attempt)
+                continue
+            if response.status_code in {429, 500, 502, 503, 504} and attempt < 2:
+                logger.warning("[model] HTTP %s; retrying request", response.status_code)
+                time.sleep(2 ** attempt)
+                continue
+            response.raise_for_status()
+            break
+    body = response.json()
+    choice = body["choices"][0]
+    if choice.get("finish_reason") not in {None, "stop"}:
+        raise ModelInvocationError(f"TAMUS response did not finish normally: {choice['finish_reason']}")
+    text = choice["message"]["content"]
+    if not isinstance(text, str) or not text.strip():
+        raise ModelInvocationError("TAMUS returned no structured text")
+    return text

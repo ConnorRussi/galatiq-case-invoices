@@ -172,16 +172,26 @@ def _evidence_section(result: IngestionResult) -> EvalSection:
     evidence_by_path = {evidence.field_path: evidence for evidence in result.normalization.evidence}
     for field_path in sorted(field_paths):
         evidence = evidence_by_path.get(field_path)
+        # USD is an authorized use-case assumption. If a quotation is supplied,
+        # still validate it; the exception must not legitimize fabricated quotes.
+        if field_path == "currency" and result.normalization.invoice.currency == "USD" and evidence is None:
+            continue
         if evidence is None:
             section.passed = False
             section.messages.append(f"{field_path}: missing evidence")
             continue
         missing_chunks = [chunk_id for chunk_id in evidence.source_chunk_ids if chunk_id not in chunks]
+        if not evidence.source_chunk_ids:
+            section.passed = False
+            section.messages.append(f"{field_path}: no source chunk ids")
         if missing_chunks:
             section.passed = False
             section.messages.append(f"{field_path}: unknown chunk ids {missing_chunks}")
         if evidence.source_text:
             quoted = _squash(evidence.source_text)
+            # A pair of display quotes is not part of the claim (e.g. "6%").
+            if len(quoted) >= 2 and quoted[0] == quoted[-1] and quoted[0] in {'"', "'"}:
+                quoted = quoted[1:-1].strip()
             if quoted and not any(quoted in source_text_by_id.get(chunk_id, "") for chunk_id in evidence.source_chunk_ids):
                 section.passed = False
                 section.messages.append(f"{field_path}: source_text not found in referenced chunks")
@@ -194,6 +204,8 @@ def _run_critic_challenges(results: list[IngestionResult]) -> list[EvalSection]:
     result = results[0]
     assert result.source_document is not None and result.normalization is not None
     cases = [
+        ("faithful_candidate", lambda n: None, None),
+        ("equivalent_decimal_representation", _rescale_decimals, None),
         ("wrong_value", lambda n: _set_invoice_value(n, "invoice_total", "999999"), "invoice_total"),
         ("missing_material_field", _remove_payment_terms, "payment_terms"),
         ("canonicalized_item_name", _canonicalize_first_spaced_item_name, "item_name"),
@@ -205,14 +217,29 @@ def _run_critic_challenges(results: list[IngestionResult]) -> list[EvalSection]:
         mutate(changed)
         try:
             critic_result = critique(result.source_document, changed)
-            matched = any((issue.field_path or "").endswith(expected_hint) or expected_hint in issue.message for issue in critic_result.issues)
+            matched = (
+                not critic_result.issues if expected_hint is None else
+                any((issue.field_path or "").endswith(expected_hint) or expected_hint in issue.message for issue in critic_result.issues)
+            )
             section = EvalSection(name, matched)
             if not matched:
-                section.messages.append(f"critic did not flag expected {expected_hint!r}; issues: {len(critic_result.issues)}")
+                section.messages.append(
+                    f"expected {'no issues' if expected_hint is None else expected_hint!r}; issues: {len(critic_result.issues)}"
+                )
         except Exception as exc:
             section = EvalSection(name, False, [f"critic call failed: {exc}"])
         sections.append(section)
     return sections
+
+
+def _rescale_decimals(normalization: NormalizationResult) -> None:
+    # Add a trailing zero without rounding or using the Decimal context.
+    for model in [normalization.invoice, *normalization.invoice.items]:
+        for name in type(model).model_fields:
+            value = getattr(model, name)
+            if isinstance(value, Decimal) and value.is_finite():
+                parts = value.as_tuple()
+                setattr(model, name, Decimal((parts.sign, parts.digits + (0,), parts.exponent - 1)))
 
 
 def _set_invoice_value(normalization: NormalizationResult, field_name: str, value: Any) -> None:

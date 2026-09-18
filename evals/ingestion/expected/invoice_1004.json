@@ -11,10 +11,24 @@
   "tax_amount": "140.00",
   "invoice_total": "1890.00",
   "additional_fields": {
-    "payment_terms": "Net 30"
+    "payment_terms": "Net 30",
+    "vendor_address": "742 Evergreen Terrace, Springfield, IL 62704"
   },
   "items": [
-    {"item_name": "WidgetA", "quantity": "3", "unit_price": "250.00"},
-    {"item_name": "WidgetB", "quantity": "2", "unit_price": "500.00"}
-  ]
+    {
+      "item_name": "WidgetA",
+      "quantity": "3",
+      "unit_price": "250.00",
+      "line_amount": null
+    },
+    {
+      "item_name": "WidgetB",
+      "quantity": "2",
+      "unit_price": "500.00",
+      "line_amount": null
+    }
+  ],
+  "shipping": null,
+  "discount": null,
+  "amount_due": null
 }

@@ -11,11 +11,34 @@
   "invoice_total": "9975.00",
   "additional_fields": {
     "former_vendor_name": "FastShip Ltd.",
-    "payment_terms": "Net 30"
+    "payment_terms": "Net 30",
+    "customer_name": "ACME Corp",
+    "customer_attention": "Accounts Payble",
+    "purchase_order": "PO-20260115",
+    "notes": "Ref PO-20260115. Deliver to warehouse dock B. Contact Jim at ext 4421 with questions."
   },
   "items": [
-    {"item_name": "Widget A", "quantity": "12", "unit_price": "250", "line_amount": "3000.00"},
-    {"item_name": "WidgetB", "quantity": "7", "unit_price": "500", "line_amount": "3500.00"},
-    {"item_name": "Gadget X", "quantity": "4", "unit_price": "750", "line_amount": "3000.00"}
-  ]
+    {
+      "item_name": "Widget A",
+      "quantity": "12",
+      "unit_price": "250",
+      "line_amount": "3000.00"
+    },
+    {
+      "item_name": "WidgetB",
+      "quantity": "7",
+      "unit_price": "500",
+      "line_amount": "3500.00"
+    },
+    {
+      "item_name": "Gadget X",
+      "quantity": "4",
+      "unit_price": "750",
+      "line_amount": "3000.00"
+    }
+  ],
+  "currency": "USD",
+  "shipping": null,
+  "discount": null,
+  "amount_due": null
 }

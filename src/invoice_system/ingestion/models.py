@@ -80,6 +80,7 @@ class CritiqueIssue(BaseModel):
     issue_type: CritiqueIssueType
     field_path: str | None = None
     message: str
+    proposed_value: JsonValue = None
     source_chunk_ids: list[str] = Field(default_factory=list)
     source_text: str | None = None
 

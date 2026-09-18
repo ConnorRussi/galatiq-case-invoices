@@ -13,7 +13,21 @@
     "payment_terms": "Net 15"
   },
   "items": [
-    {"item_name": "WidgetA", "quantity": "10", "unit_price": "250.00"},
-    {"item_name": "WidgetB", "quantity": "5", "unit_price": "500.00"}
-  ]
+    {
+      "item_name": "WidgetA",
+      "quantity": "10",
+      "unit_price": "250.00",
+      "line_amount": null
+    },
+    {
+      "item_name": "WidgetB",
+      "quantity": "5",
+      "unit_price": "500.00",
+      "line_amount": null
+    }
+  ],
+  "currency": "USD",
+  "shipping": null,
+  "discount": null,
+  "amount_due": null
 }

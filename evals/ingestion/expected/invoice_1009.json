@@ -11,7 +11,24 @@
   "tax_amount": "0.00",
   "invoice_total": "-250.00",
   "items": [
-    {"item_name": "WidgetA", "quantity": "-5", "unit_price": "250.00"},
-    {"item_name": "WidgetB", "quantity": "2", "unit_price": "500.00"}
-  ]
+    {
+      "item_name": "WidgetA",
+      "quantity": "-5",
+      "unit_price": "250.00",
+      "line_amount": null
+    },
+    {
+      "item_name": "WidgetB",
+      "quantity": "2",
+      "unit_price": "500.00",
+      "line_amount": null
+    }
+  ],
+  "shipping": null,
+  "discount": null,
+  "amount_due": null,
+  "additional_fields": {
+    "payment_terms": null,
+    "vendor_address": null
+  }
 }
