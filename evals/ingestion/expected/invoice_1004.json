@@ -1,0 +1,20 @@
+{
+  "fixture": "invoice_1004.json",
+  "expected_status": "accept",
+  "invoice_number": "INV-1004",
+  "vendor": "Precision Parts Ltd.",
+  "invoice_date": "2026-01-22",
+  "due_date": "2026-02-22",
+  "currency": "USD",
+  "subtotal": "1750.00",
+  "tax_rate": "0.08",
+  "tax_amount": "140.00",
+  "invoice_total": "1890.00",
+  "additional_fields": {
+    "payment_terms": "Net 30"
+  },
+  "items": [
+    {"item_name": "WidgetA", "quantity": "3", "unit_price": "250.00"},
+    {"item_name": "WidgetB", "quantity": "2", "unit_price": "500.00"}
+  ]
+}

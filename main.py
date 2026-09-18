@@ -1,10 +1,9 @@
-"""Run one invoice through Phase 1 ingestion."""
+"""Run invoice ingestion or its regression evaluation."""
 
 import argparse
 import logging
 from pathlib import Path
 import sys
-import traceback
 
 from dotenv import load_dotenv
 
@@ -12,34 +11,34 @@ from dotenv import load_dotenv
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from invoice_system.ingestion.graph import build_graph
-from invoice_system.ingestion.run_logging import create_run_directory, write_artifact
+from invoice_system.ingestion.evaluation import run_evaluation
+from invoice_system.ingestion.models import IngestionStatus
+from invoice_system.ingestion.run_logging import create_normal_run_context
+from invoice_system.ingestion.runner import run_ingestion
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Normalize one invoice with source evidence")
-    parser.add_argument("--invoice_path", required=True)
+    parser = argparse.ArgumentParser(description="Run invoice ingestion")
+    parser.add_argument("--invoice_path")
+    parser.add_argument("--eval-ingestion", action="store_true")
     args = parser.parse_args()
+    if args.eval_ingestion:
+        load_dotenv(ROOT / ".env")
+        logging.basicConfig(level=logging.INFO, format="%(message)s")
+        return 0 if run_evaluation(ROOT) else 1
+    if not args.invoice_path:
+        parser.error("--invoice_path is required unless --eval-ingestion is used")
     load_dotenv(ROOT / ".env")
     logging.basicConfig(level=logging.INFO, format="%(message)s")
-    directory = None
-    try:
-        directory = create_run_directory(ROOT / "runs")
-        print(f"Run artifacts: {directory}", file=sys.stderr)
-        state = {"source_path": args.invoice_path, "source_document": None, "normalization": None}
-        for update in build_graph().stream(state, stream_mode="updates"):
-            if "read_source" in update:
-                write_artifact(directory, "source.json", update["read_source"]["source_document"])
-            if "normalize" in update:
-                result = update["normalize"]["normalization"]
-                write_artifact(directory, "normalized.json", result)
-                print(result.invoice.model_dump_json(indent=2))
-        return 0
-    except Exception as exc:
-        logging.error("[error] %s", exc)
-        if directory is not None:
-            (directory / "error.log").write_text(traceback.format_exc(), encoding="utf-8")
-        return 1
+    context = create_normal_run_context(ROOT / "logs", args.invoice_path)
+    result = run_ingestion(args.invoice_path, artifact_context=context)
+    print(f"Final status: {result.status.value}")
+    if result.normalization is not None:
+        print(result.normalization.invoice.model_dump_json(indent=2))
+    if result.error_message:
+        logging.error("[error] %s", result.error_message)
+    print(f"Run artifacts: {context.run_dir}")
+    return 1 if result.status == IngestionStatus.TECHNICAL_FAILURE else 0
 
 
 if __name__ == "__main__":

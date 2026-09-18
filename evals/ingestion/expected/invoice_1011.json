@@ -1,0 +1,19 @@
+{
+  "fixture": "invoice_1011.pdf",
+  "expected_status": "accept",
+  "invoice_number": "INV-1011",
+  "vendor": "Summit Manufacturing Co.",
+  "invoice_date": "2026-01-20",
+  "due_date": "2026-02-20",
+  "subtotal": "3000.00",
+  "tax_rate": "0",
+  "tax_amount": "0.00",
+  "invoice_total": "3000.00",
+  "additional_fields": {
+    "payment_terms": "Net 30"
+  },
+  "items": [
+    {"item_name": "WidgetA", "quantity": "6", "unit_price": "250.00", "line_amount": "1500.00"},
+    {"item_name": "WidgetB", "quantity": "3", "unit_price": "500.00", "line_amount": "1500.00"}
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "fixture": "invoice_1009.json",
+  "expected_status": "accept",
+  "vendor": null,
+  "invoice_number": "INV-1009",
+  "invoice_date": "2026-01-15",
+  "due_date": null,
+  "currency": "USD",
+  "subtotal": "1000.00",
+  "tax_rate": "0.0",
+  "tax_amount": "0.00",
+  "invoice_total": "-250.00",
+  "items": [
+    {"item_name": "WidgetA", "quantity": "-5", "unit_price": "250.00"},
+    {"item_name": "WidgetB", "quantity": "2", "unit_price": "500.00"}
+  ]
+}

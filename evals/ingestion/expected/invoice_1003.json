@@ -1,0 +1,15 @@
+{
+  "fixture": "invoice_1003.txt",
+  "expected_status": "accept",
+  "invoice_number": "INV-1003",
+  "vendor": "Fraudster LLC",
+  "invoice_date": "2026-01-20",
+  "due_date": "yesterday",
+  "invoice_total": "100000.00",
+  "additional_fields": {
+    "payment_terms": "Immediate"
+  },
+  "items": [
+    {"item_name": "FakeItem", "quantity": "100", "unit_price": "1000.00"}
+  ]
+}

@@ -2,6 +2,7 @@
 
 from datetime import date
 from decimal import Decimal
+from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator
 
@@ -65,3 +66,47 @@ class FieldEvidence(BaseModel):
 class NormalizationResult(BaseModel):
     invoice: NormalizedInvoice
     evidence: list[FieldEvidence]
+
+
+class CritiqueIssueType(str, Enum):
+    INCORRECT_VALUE = "incorrect_value"
+    MISSING_INFORMATION = "missing_information"
+    UNSUPPORTED_INFERENCE = "unsupported_inference"
+    STRUCTURE_MISMATCH = "structure_mismatch"
+    EVIDENCE_PROBLEM = "evidence_problem"
+
+
+class CritiqueIssue(BaseModel):
+    issue_type: CritiqueIssueType
+    field_path: str | None = None
+    message: str
+    source_chunk_ids: list[str] = Field(default_factory=list)
+    source_text: str | None = None
+
+    @field_validator("field_path")
+    @classmethod
+    def relative_field_path(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return value.removeprefix("invoice.")
+
+
+class CritiqueResult(BaseModel):
+    issues: list[CritiqueIssue] = Field(default_factory=list)
+    summary: str | None = None
+
+
+class IngestionStatus(str, Enum):
+    ACCEPT = "accept"
+    NEEDS_REVIEW = "needs_review"
+    TECHNICAL_FAILURE = "technical_failure"
+
+
+class IngestionResult(BaseModel):
+    status: IngestionStatus
+    source_path: str
+    source_document: SourceDocument | None = None
+    normalization: NormalizationResult | None = None
+    critique: CritiqueResult | None = None
+    revision_count: int = 0
+    error_message: str | None = None

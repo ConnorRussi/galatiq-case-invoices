@@ -1,0 +1,19 @@
+{
+  "fixture": "invoice_1001.txt",
+  "expected_status": "accept",
+  "invoice_number": "INV-1001",
+  "vendor": "Widgets Inc.",
+  "invoice_date": "2026-01-15",
+  "due_date": "2026-02-01",
+  "subtotal": "5000.00",
+  "tax_rate": "0",
+  "tax_amount": "0.00",
+  "invoice_total": "5000.00",
+  "additional_fields": {
+    "payment_terms": "Net 15"
+  },
+  "items": [
+    {"item_name": "WidgetA", "quantity": "10", "unit_price": "250.00"},
+    {"item_name": "WidgetB", "quantity": "5", "unit_price": "500.00"}
+  ]
+}

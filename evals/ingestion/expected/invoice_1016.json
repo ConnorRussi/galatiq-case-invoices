@@ -1,0 +1,21 @@
+{
+  "fixture": "invoice_1016.json",
+  "expected_status": "accept",
+  "invoice_number": "INV-1016",
+  "vendor": "Widgets Inc.",
+  "invoice_date": "2026-01-27",
+  "due_date": "2026-02-27",
+  "currency": "USD",
+  "subtotal": "3050.00",
+  "tax_rate": "0.06",
+  "tax_amount": "183.00",
+  "invoice_total": "3233.00",
+  "additional_fields": {
+    "payment_terms": "Net 30"
+  },
+  "items": [
+    {"item_name": "WidgetA", "quantity": "4", "unit_price": "250.00", "line_amount": "1000.00"},
+    {"item_name": "WidgetB", "quantity": "2", "unit_price": "500.00", "line_amount": "1000.00"},
+    {"item_name": "WidgetC", "quantity": "3", "unit_price": "350.00", "line_amount": "1050.00"}
+  ]
+}
