@@ -40,7 +40,7 @@ Total", "Invoice Total", and "Total" map to invoice_total; "Amount Due",
 not calculation. Preserve evidence for the exact label and amount.
 
 Return evidence separately from invoice. Include evidence for every populated
-common field (subject to the policy's currency-default exception), each populated
+common field, including currency, each populated
 line-item field, and materially relevant additional fields. Use field paths relative to invoice and cite actual source chunks with
 short verbatim excerpts where practical. Never rewrite source quotations.
 """
@@ -112,6 +112,17 @@ _EXPLICIT_AMOUNT_PATTERNS = (
         ),
     ),
 )
+_CURRENCY_LABEL_PATTERN = re.compile(
+    r"(?i)\bcurrency\b\s*(?:[:=>])\s*[\"']?(?P<code>[A-Z]{3})\b"
+)
+_CURRENCY_CODE_PATTERN = re.compile(
+    r"(?i)(?<![A-Z])(?P<code>USD|EUR|GBP|JPY|CAD|AUD|CHF|CNY|INR|MXN|NZD|SEK|NOK|DKK|SGD|HKD|BRL|PLN|ZAR|RUB|KRW|TRY)(?![A-Z])"
+)
+_CURRENCY_SYMBOL_PATTERNS = (
+    ("USD", re.compile(r"\$")),
+    ("EUR", re.compile("\u20ac")),
+    ("GBP", re.compile("\u00a3")),
+)
 
 
 def _enforce_normalization_contract(
@@ -128,6 +139,7 @@ def _enforce_normalization_contract(
     _extract_embedded_purchase_order(normalization)
     _demote_ambiguous_amounts(source, normalization)
     _promote_explicit_amounts(source, normalization)
+    _enforce_currency_contract(source, normalization)
     _canonicalize_evidence_paths(normalization)
     _add_missing_purchase_order_evidence(source, normalization)
     return normalization
@@ -283,6 +295,54 @@ def _promote_explicit_amounts(source: SourceDocument, normalization: Normalizati
         raw_value = invoice.additional_fields.get("amount_raw")
         if isinstance(raw_value, str) and raw_value.replace(" ", "") == match.group("value").replace(" ", ""):
             invoice.additional_fields.pop("amount_raw", None)
+
+
+def _enforce_currency_contract(source: SourceDocument, normalization: NormalizationResult) -> None:
+    """Keep currency source-backed and collect explicit ISO codes.
+
+    An explicit ISO code or unambiguous currency symbol is a source claim and may
+    be copied into the typed field when the model omitted it. The dollar symbol
+    is treated as USD for this workflow.
+    """
+
+    source_claim = None
+    for chunk in source.chunks:
+        match = _CURRENCY_LABEL_PATTERN.search(chunk.text) or _CURRENCY_CODE_PATTERN.search(chunk.text)
+        if match is not None:
+            source_claim = (chunk, match.group("code"), match.group(0).strip())
+            break
+        for code, pattern in _CURRENCY_SYMBOL_PATTERNS:
+            match = pattern.search(chunk.text)
+            if match is not None:
+                source_claim = (chunk, code, match.group(0))
+                break
+        if source_claim is not None:
+            break
+    if source_claim is None:
+        normalization.invoice.currency = None
+        normalization.evidence = [
+            item for item in normalization.evidence if item.field_path != "currency"
+        ]
+        return
+
+    source_chunk, currency, source_text = source_claim
+    currency = currency.upper()
+    normalization.invoice.currency = currency
+    evidence = next(
+        (item for item in normalization.evidence if item.field_path == "currency"),
+        None,
+    )
+    if evidence is None:
+        normalization.evidence.append(
+            FieldEvidence(
+                field_path="currency",
+                source_chunk_ids=[source_chunk.id],
+                source_text=source_text,
+            )
+        )
+    else:
+        evidence.source_chunk_ids = [source_chunk.id]
+        evidence.source_text = source_text
 
 
 def _canonicalize_evidence_paths(normalization: NormalizationResult) -> None:

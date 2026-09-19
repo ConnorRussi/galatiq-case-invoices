@@ -50,5 +50,7 @@ back to source chunk IDs and optional quoted source text. Financial values use
 ## Payment boundary
 
 Payment is intentionally local and simulated. It records the vendor, selected
-amount (`amount_due`, then `invoice_total`), currency, transaction ID, and outcome,
-but it does not contact a bank or external payment provider.
+amount (`amount_due`, then `invoice_total`), required source-confirmed currency,
+transaction ID, and outcome, but it does not contact a bank or external payment
+provider. Missing currency is a fail-closed preflight failure and never reaches
+the provider.

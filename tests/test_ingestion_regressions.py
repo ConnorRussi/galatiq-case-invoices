@@ -211,14 +211,43 @@ def test_critic_revision_reversal_is_detected():
 
 
 @pytest.mark.parametrize(('currency', 'evidence', 'passed'), [
-    ('USD', [], True),
-    ('EUR', [], False),
-    ('USD', [{'field_path': 'currency', 'source_chunk_ids': ['text_1'], 'source_text': 'USD'}], False),
+    (None, [], True),
+    ('USD', [], False),
+    ('USD', [{'field_path': 'currency', 'source_chunk_ids': ['text_1'], 'source_text': 'USD'}], True),
 ])
-def test_default_currency_evidence_exception_is_bounded(currency, evidence, passed):
-    result = IngestionResult(status='accept', source_path='test.txt', source_document=source(),
+def test_currency_requires_source_evidence_when_populated(currency, evidence, passed):
+    result = IngestionResult(status='accept', source_path='test.txt', source_document=source('Currency: USD'),
         normalization=NormalizationResult(invoice={'currency': currency}, evidence=evidence))
     assert _evidence_section(result).passed is passed
+
+
+def test_normalizer_collects_usd_from_dollar_symbol(monkeypatch):
+    candidate = NormalizationResult(invoice={}, evidence=[])
+    monkeypatch.setattr(normalizer, 'invoke_structured', lambda **kw: candidate)
+
+    result = normalizer.normalize(source('Total: $225.00'))
+
+    assert result.invoice.currency == 'USD'
+    assert any(item.field_path == 'currency' and item.source_text == '$' for item in result.evidence)
+
+
+def test_normalizer_keeps_currency_unknown_without_code_or_symbol(monkeypatch):
+    candidate = NormalizationResult(invoice={'currency': 'USD'}, evidence=[])
+    monkeypatch.setattr(normalizer, 'invoke_structured', lambda **kw: candidate)
+
+    result = normalizer.normalize(source('Total: 225.00'))
+
+    assert result.invoice.currency is None
+
+
+def test_normalizer_collects_explicit_currency_code(monkeypatch):
+    candidate = NormalizationResult(invoice={}, evidence=[])
+    monkeypatch.setattr(normalizer, 'invoke_structured', lambda **kw: candidate)
+
+    result = normalizer.normalize(source('Currency: EUR\nTotal: €225.00'))
+
+    assert result.invoice.currency == 'EUR'
+    assert any(item.field_path == 'currency' and 'EUR' in (item.source_text or '') for item in result.evidence)
 
 
 @pytest.mark.parametrize(('quote', 'ids', 'passed'), [
@@ -239,7 +268,7 @@ def test_goldens_cover_every_typed_field_and_reject_invented_values(path):
     golden = json.loads(path.read_text())
     assert set(SCALAR_FIELDS) <= golden.keys()
     invoice = NormalizedInvoice.model_validate(golden)
-    assert invoice.currency in {'USD', 'EUR'}
+    assert invoice.currency in {None, 'USD', 'EUR'}
     for item in golden['items']:
         assert {'item_name', 'quantity', 'unit_price', 'line_amount'} <= item.keys()
     # Any previously unspecified scalar is now an explicit null assertion.

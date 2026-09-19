@@ -17,10 +17,10 @@ from ..ingestion.run_logging import (
 from .models import PaymentRequest, PaymentResult, PaymentStatus
 
 
-PaymentProvider = Callable[[str, Decimal], Mapping[str, Any]]
+PaymentProvider = Callable[[str, Decimal, str], Mapping[str, Any]]
 
 
-def mock_payment(vendor: str, amount: Decimal) -> dict[str, str]:
+def mock_payment(vendor: str, amount: Decimal, currency: str) -> dict[str, str]:
     """Simulate the README payment API without an external side effect."""
 
     return {
@@ -69,7 +69,7 @@ def run_payment(
         )
 
     try:
-        response = provider(request.vendor, request.amount)
+        response = provider(request.vendor, request.amount, request.currency)
         provider_status = str(response.get("status", "")).lower()
         if provider_status != "success":
             raise RuntimeError(str(response.get("reason") or "Mock payment was not successful"))

@@ -128,8 +128,8 @@ You may extend the seed data with additional items or columns (e.g., unit price,
 ### Mock Payment API
 
 ```python
-def mock_payment(vendor, amount):
-    print(f"Paid {amount} to {vendor}")
+def mock_payment(vendor, amount, currency):
+    print(f"Paid {amount} {currency} to {vendor}")
     return {"status": "success"}
 ```
 

@@ -166,19 +166,13 @@ def run_invoice_workflow(
         _progress(progress_callback, f"Invoice rejected during approval: {result.reason}")
         return _finish(result, context)
 
-    _progress(progress_callback, "[4/4] Starting mock payment")
     try:
         payment_request = _build_payment_request(ingestion, approval.invoice_id)
-        payment = run_payment(
-            payment_request,
-            artifact_context=context,
-            persist_artifacts=persist_artifacts,
-        )
     except (ValueError, ValidationError) as exc:
         payment = PaymentResult(
             status=PaymentStatus.FAILED,
             invoice_id=approval.invoice_id,
-            reason=str(exc),
+            reason=f"Payment blocked before provider call: {exc}",
         )
         if context is not None:
             write_artifact(context.run_dir, "payment_result.json", payment)
@@ -189,6 +183,14 @@ def run_invoice_workflow(
                 status=payment.status.value,
                 reason=payment.reason,
             )
+        _progress(progress_callback, f"[4/4] Payment blocked: {payment.reason}")
+    else:
+        _progress(progress_callback, "[4/4] Starting mock payment")
+        payment = run_payment(
+            payment_request,
+            artifact_context=context,
+            persist_artifacts=persist_artifacts,
+        )
 
     if payment.status != PaymentStatus.SUCCESS:
         result = WorkflowResult(
@@ -251,6 +253,8 @@ def _build_payment_request(ingestion: IngestionResult, invoice_id: str) -> Payme
         raise ValueError("Payment requires a vendor")
     if amount is None:
         raise ValueError("Payment requires amount_due or invoice_total")
+    if not invoice.currency:
+        raise ValueError("Payment requires a confirmed invoice currency before provider call")
     return PaymentRequest(
         invoice_id=invoice_id,
         vendor=invoice.vendor,

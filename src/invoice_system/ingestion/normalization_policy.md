@@ -3,7 +3,12 @@
 Normalization converts source claims into a consistent representation while preserving their meaning. It may standardize representation, including obvious unambiguous OCR/formatting errors, but it must not derive, validate, or invent business information.
 
 - Only populate fields supported by the source.
-- Currency is the sole use-case default: assume USD when the source does not specify a currency. Preserve an explicitly stated currency (including EUR); never convert monetary values. USD requires no source quotation under this assumption and must not be presented as source evidence unless actually stated. Any other currency requires source evidence.
+- Never assume a currency that is absent from the source. Capture an explicitly
+  stated currency code from the source (for example, USD or EUR), or map an
+  explicit `$` symbol to USD. Preserve the currency in `currency` and never
+  convert monetary values. If the source has neither a currency code nor a
+  currency symbol, leave `currency` null; payment must stop until the currency
+  is confirmed.
 - Do not calculate or derive missing business values such as totals, subtotals, line amounts, tax, or dates.
 - Explicit labels are source claims, not derived values: map `Total Amount`,
   `Grand Total`, `Invoice Total`, or `Total` to `invoice_total`; map `Amount Due`,
@@ -24,5 +29,5 @@ Normalization converts source claims into a consistent representation while pres
 - Numeric values are compared semantically: `225`, `225.0`, and `225.00` are equivalent.
 - Never correct suspicious business values such as negative quantities during normalization.
 - Evidence must point to the actual source claim, not a derived calculation.
-- Quote the original source text, including OCR corruption, using paths such as `additional_fields.due_date_raw`. Evidence is required for populated fields except the default USD. Empty values retained in additional_fields must be null, not empty strings.
+- Quote the original source text, including OCR corruption, using paths such as `additional_fields.due_date_raw`. Evidence is required for every populated field, including currency. Empty values retained in additional_fields must be null, not empty strings.
 - Preserve line order and repeated items, internal product-name spaces, and semantic spelling mistakes. Keep line-specific notes on their line. Use `notes`, `vendor_address`, `customer_name`, `customer_attention`, and `purchase_order` for those known additional concepts. Preserve full source notes even if a reference is also extracted separately.

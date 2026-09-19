@@ -20,7 +20,7 @@ from invoice_system import workflow
 from invoice_system.workflow import WorkflowStatus
 
 
-def _ingestion(*, amount_due="500", invoice_total="600") -> IngestionResult:
+def _ingestion(*, amount_due="500", invoice_total="600", currency="USD") -> IngestionResult:
     return IngestionResult(
         status=IngestionStatus.ACCEPT,
         source_path="invoice.txt",
@@ -28,7 +28,7 @@ def _ingestion(*, amount_due="500", invoice_total="600") -> IngestionResult:
             invoice={
                 "invoice_number": "INV-1",
                 "vendor": "Acme Supplies",
-                "currency": "USD",
+                "currency": currency,
                 "amount_due": amount_due,
                 "invoice_total": invoice_total,
                 "items": [],
@@ -213,6 +213,31 @@ def test_payment_failure_has_distinct_terminal_status(monkeypatch):
     assert result.stopped_at == "payment"
     assert result.reason == "provider unavailable"
     assert result.vp_review_required
+
+
+def test_missing_currency_blocks_payment_before_provider(monkeypatch):
+    ingestion = _ingestion(currency=None)
+    validation = _validation(ingestion)
+    _install_upstream(monkeypatch, ingestion, validation)
+    monkeypatch.setattr(workflow, "run_approval", lambda *args, **kwargs: _approval(approved=True))
+    monkeypatch.setattr(
+        workflow,
+        "run_payment",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("payment provider ran")),
+    )
+    messages = []
+
+    result = workflow.run_invoice_workflow(
+        "invoice.txt",
+        database_path="inventory.sqlite",
+        persist_artifacts=False,
+        progress_callback=messages.append,
+    )
+
+    assert result.status == WorkflowStatus.PAYMENT_FAILED
+    assert result.stopped_at == "payment"
+    assert "confirmed invoice currency" in result.reason
+    assert any("Payment blocked" in message for message in messages)
 
 
 def test_terminal_workflow_artifact_is_evaluation_ready(tmp_path, monkeypatch):

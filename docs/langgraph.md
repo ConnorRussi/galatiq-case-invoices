@@ -79,12 +79,13 @@ ingestion
        -> denied/technical failure: stop
        -> approval
             -> rejected/technical failure: stop
-            -> mock payment
+                 -> currency/amount payment preflight -> mock payment
                  -> WorkflowResult
 ```
 
 Payment is not a LangGraph node and has no model authority. It is a typed local
-side-effect simulation that can only be reached from `ApprovalResult.APPROVED`.
+side-effect simulation that can only be reached from `ApprovalResult.APPROVED`
+and a payment preflight confirming vendor, amount, and source-confirmed currency.
 
 ## Change rules
 

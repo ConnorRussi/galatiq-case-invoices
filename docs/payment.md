@@ -5,10 +5,12 @@ The payment boundary is a local simulation implemented in
 demonstrate the case workflow without contacting a bank or external API.
 
 `PaymentRequest` receives an approved invoice ID, vendor, positive amount, and
-optional currency. The workflow selects `amount_due` first and falls back to
-`invoice_total`; a missing vendor or amount fails payment explicitly.
+required three-letter ISO currency code. The workflow selects `amount_due` first
+and falls back to `invoice_total`; a missing vendor, amount, or confirmed
+currency blocks payment explicitly before the provider is called.
 
-`run_payment()` calls the injectable `mock_payment()` provider and returns a typed
+`run_payment()` passes vendor, amount, and currency to the injectable
+`mock_payment()` provider and returns a typed
 `PaymentResult`. Success includes a mock transaction ID. Provider exceptions and
 non-success responses become `FAILED` results rather than escaping as fabricated
 successes.

@@ -175,10 +175,6 @@ def _evidence_section(result: IngestionResult) -> EvalSection:
         section.messages.append("duplicate evidence field paths")
     for field_path in sorted(field_paths):
         evidence = evidence_by_path.get(field_path)
-        # USD is an authorized use-case assumption. If a quotation is supplied,
-        # still validate it; the exception must not legitimize fabricated quotes.
-        if field_path == "currency" and result.normalization.invoice.currency == "USD" and evidence is None:
-            continue
         if evidence is None:
             section.passed = False
             section.messages.append(f"{field_path}: missing evidence")

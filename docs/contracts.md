@@ -104,9 +104,11 @@ mock payment boundary; the approval runner itself does not perform payment.
 ## Payment and workflow contracts
 
 `PaymentRequest` contains the approved invoice ID, vendor, positive amount, and
-optional currency. The amount is selected from `amount_due` first and falls back
-to `invoice_total`. `PaymentResult` records `SUCCESS` or `FAILED`, the attempted
-payment values, optional mock transaction ID, and reason.
+required three-letter ISO currency code. The amount is selected from `amount_due`
+first and falls back to `invoice_total`. `PaymentResult` records `SUCCESS` or
+`FAILED`, the attempted payment values, optional mock transaction ID, and reason.
+An invoice without source-confirmed currency is blocked before the provider is
+called.
 
 `WorkflowResult` is the terminal end-to-end contract. Its status is one of
 `APPROVED_AND_PAID`, `VALIDATION_DENIED`, `APPROVAL_REJECTED`, `PAYMENT_FAILED`,

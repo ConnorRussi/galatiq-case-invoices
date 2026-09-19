@@ -16,8 +16,10 @@ terminal status. The separate Phase 1 validation graph consumes this result.
    derive values that the source does not support. Explicit source labels such as
    `Total Amount`, `Grand Total`, `Invoice Total`, `Amount Due`, `Balance Due`,
    and `Total Due` are mechanically mapped to typed monetary fields after the
-   model response; this is source extraction, not calculation. Field evidence is
-   separate from invoice claims.
+   model response; this is source extraction, not calculation. Currency is copied
+   from an explicit source code or supported symbol (`$` means USD); if neither
+   is present it remains null and payment is blocked. Field evidence is separate
+   from invoice claims.
 3. `critic` reviews the candidate against the same source and policy. It can
    identify incorrect values, missing information, unsupported inference,
    structure mismatches, and evidence problems.
@@ -34,6 +36,8 @@ terminal status. The separate Phase 1 validation graph consumes this result.
 - CSV header and row structure is preserved.
 - Blank or textless PDF pages fail conservatively because OCR is not installed.
 - A technical failure never fabricates an invoice.
+- Currency is null only when the source provides no currency code or supported
+  symbol; explicit currency claims carry source evidence.
 - An explicit source total cannot remain only in `additional_fields.amount_raw`;
   it must be represented as `invoice_total` or `amount_due` with source evidence.
 - Critique must not turn formatting-equivalent or policy-permitted values into

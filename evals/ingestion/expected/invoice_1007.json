@@ -29,7 +29,7 @@
       "line_amount": "2250.00"
     }
   ],
-  "currency": "USD",
+  "currency": null,
   "shipping": null,
   "discount": null,
   "amount_due": null,

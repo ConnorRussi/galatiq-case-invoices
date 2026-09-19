@@ -130,3 +130,4 @@ def test_policy_defines_tax_rate_and_canonical_raw_field_rules():
     assert "amount_raw" in policy
     assert "Total Amount" in policy
     assert "Amount Due" in policy
+    assert "Never assume a currency" in policy
