@@ -29,3 +29,4 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 invoice_system.ingestion = ["*.md"]
+invoice_system.approval = ["*.md"]
