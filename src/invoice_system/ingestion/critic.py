@@ -44,6 +44,20 @@ missing derived fields, correctly preserved source mistakes, or values left null
 because they are ambiguous. Return no issues when the normalization faithfully
 represents the source under the policy.
 
+Use this review order for every candidate:
+1. Identify the source claim and its exact representation.
+2. Decide whether the policy permits the candidate's normalization, including
+   permitted nulls and canonical additional-field names.
+3. Check that evidence paths resolve to the candidate field they claim to support
+   and that quotations remain source text rather than normalized text.
+4. Propose a correction only when the candidate violates that policy or loses a
+   material source claim. Do not infer a correction from the expected shape of a
+   different invoice.
+
+Judge each revision independently against the unchanged source and shared policy.
+If the candidate applied a prior correction and is now compliant, do not reverse
+that correction merely to prefer another representation.
+
 An issue is invalid if its own explanation says the candidate is correct, faithful,
 allowed, or needs no change. Never emit such an issue. Compare Pydantic fields by
 their semantics: Decimal values such as 225, 225.0, and 225.00 are equal even if
@@ -86,7 +100,66 @@ def critique(source: SourceDocument, normalization: NormalizationResult) -> Crit
             logger.info("[critic] Ignoring unchanged proposal at %s", issue.field_path)
             continue
         valid_issues.append(CritiqueIssue.model_validate(issue.model_dump()))
+    valid_issues.extend(_deterministic_policy_issues(normalization))
     return CritiqueResult(issues=valid_issues, summary=result.summary if valid_issues else None)
+
+
+def _deterministic_policy_issues(normalization: NormalizationResult) -> list[CritiqueIssue]:
+    """Catch structural policy violations that do not require source interpretation."""
+    issues = []
+    invoice = normalization.invoice.model_dump(mode="python")
+    for path, value in _additional_field_values(invoice):
+        if value == "":
+            issues.append(
+                CritiqueIssue(
+                    issue_type="incorrect_value",
+                    field_path=path,
+                    message="Blank additional-field values normalize to null under the shared policy.",
+                    proposed_value=None,
+                )
+            )
+
+    evidence = normalization.evidence
+    known_paths = set(_populated_paths(invoice))
+    for index, item in enumerate(evidence):
+        path = item.field_path
+        if path in known_paths:
+            continue
+        # A common structural error is omitting the additional_fields wrapper.
+        corrected = f"additional_fields.{path}"
+        if corrected in known_paths:
+            issues.append(
+                CritiqueIssue(
+                    issue_type="evidence_problem",
+                    field_path=f"evidence[{index}].field_path",
+                    message="Evidence paths must be relative to the normalized invoice structure.",
+                    proposed_value=corrected,
+                )
+            )
+    return issues
+
+
+def _additional_field_values(invoice):
+    for key, value in invoice.get("additional_fields", {}).items():
+        yield f"additional_fields.{key}", value
+    for index, item in enumerate(invoice.get("items", [])):
+        for key, value in item.get("additional_fields", {}).items():
+            yield f"items[{index}].additional_fields.{key}", value
+
+
+def _populated_paths(invoice):
+    paths = []
+    for name, value in invoice.items():
+        if name not in {"items", "additional_fields"} and value not in (None, ""):
+            paths.append(name)
+    for path, value in _additional_field_values(invoice):
+        if value not in (None, ""):
+            paths.append(path)
+    for index, item in enumerate(invoice.get("items", [])):
+        for name, value in item.items():
+            if name != "additional_fields" and value not in (None, ""):
+                paths.append(f"items[{index}].{name}")
+    return paths
 
 
 _MISSING = object()

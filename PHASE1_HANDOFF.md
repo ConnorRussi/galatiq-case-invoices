@@ -620,9 +620,10 @@ was added. There are no known unresolved material claim errors in these reviewed
 outputs, but these manual examples do not establish reliability on future runs.
 
 Evidence is intentionally lightweight. Short number excerpts and page-level
-chunks can be less precise than row-level references, and additional-field keys
-can vary (for example note versus notes). The purchase order in invoice_1012 is
-preserved within the transaction notes rather than requiring a dedicated key.
+chunks can be less precise than row-level references. The active normalization
+policy is authoritative for additional-field names: known concepts use canonical
+keys such as `notes` and `purchase_order`, while the complete source note remains
+preserved when a reference is extracted separately.
 Currency remains null where the source only provides an ambiguous dollar symbol.
 The invoice_1013 PDF lacks the USD code present in its JSON counterpart, so its
 currency is null while the JSON result is USD; each is normalized independently.

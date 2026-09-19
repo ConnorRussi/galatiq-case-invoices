@@ -9,4 +9,6 @@ class IngestionState(TypedDict):
     normalization: NormalizationResult | None
     critique: CritiqueResult | None
     revision_count: int
+    critique_history: list[CritiqueResult]
+    critic_instability: str | None
     result: IngestionResult | None

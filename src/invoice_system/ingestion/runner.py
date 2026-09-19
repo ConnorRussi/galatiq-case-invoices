@@ -38,6 +38,8 @@ def run_ingestion(
             "normalization": None,
             "critique": None,
             "revision_count": 0,
+            "critique_history": [],
+            "critic_instability": None,
             "result": None,
         }
         for update in build_graph().stream(state, stream_mode="updates"):
@@ -81,7 +83,13 @@ def run_ingestion(
                         )
                         logger.log_event("revise", "started", version=version + 1)
                     else:
-                        reason = "Final critique contains no issues" if issue_count == 0 else "Revision budget exhausted"
+                        reason = (
+                            "Critic revision instability detected"
+                            if update["critic"].get("critic_instability")
+                            else "Final critique contains no issues"
+                            if issue_count == 0
+                            else "Revision budget exhausted"
+                        )
                         logger.log_event("route", "gate", reason=reason)
             if "gate" in update:
                 final = update["gate"]["result"]
