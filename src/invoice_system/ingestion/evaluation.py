@@ -170,6 +170,9 @@ def _evidence_section(result: IngestionResult) -> EvalSection:
     source_text_by_id = {chunk_id: _squash(text) for chunk_id, text in chunks.items()}
     field_paths = set(_populated_field_paths(result.normalization))
     evidence_by_path = {evidence.field_path: evidence for evidence in result.normalization.evidence}
+    if len(evidence_by_path) != len(result.normalization.evidence):
+        section.passed = False
+        section.messages.append("duplicate evidence field paths")
     for field_path in sorted(field_paths):
         evidence = evidence_by_path.get(field_path)
         # USD is an authorized use-case assumption. If a quotation is supplied,

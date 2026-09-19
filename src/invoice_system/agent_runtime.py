@@ -18,11 +18,11 @@ class ModelInvocationError(Exception):
 
 @traceable(name="TAMUS structured output", run_type="llm")
 def invoke_structured[T: BaseModel](
-    *, system_prompt: str, content: str, output_model: type[T]
+    *, system_prompt: str, content: str, output_model: type[T], model: str | None = None
 ) -> T:
     api_key = os.getenv("TAMUS_AI_CHAT_API_KEY")
-    model = os.getenv("TAMUS_AI_CHAT_MODEL")
-    if not api_key or not model:
+    selected_model = model or os.getenv("TAMUS_AI_CHAT_MODEL")
+    if not api_key or not selected_model:
         raise ModelInvocationError(
             "Set TAMUS_AI_CHAT_API_KEY and TAMUS_AI_CHAT_MODEL in the environment or .env"
         )
@@ -33,7 +33,7 @@ def invoke_structured[T: BaseModel](
             text = _request_structured_text(
                 api_key=api_key,
                 endpoint=endpoint,
-                model=model,
+                model=selected_model,
                 system_prompt=prompt,
                 content=content,
                 output_model=output_model,
@@ -56,7 +56,7 @@ def invoke_structured[T: BaseModel](
     except ModelInvocationError:
         raise
     except Exception as exc:
-        raise ModelInvocationError(f"TAMUS invocation failed ({model}): {exc}") from exc
+        raise ModelInvocationError(f"TAMUS invocation failed ({selected_model}): {exc}") from exc
 
 
 def _request_structured_text[T: BaseModel](
