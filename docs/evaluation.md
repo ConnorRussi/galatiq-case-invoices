@@ -69,6 +69,20 @@ language summaries and explanations are not scored. Focused critic probes under
 [`critic_expected/`](../evals/validation/semantic/critic_expected/) remain
 contract-test fixtures; they are not a second end-to-end evaluation flow.
 
+Goldens may declare an invariant such as
+`invoice_date_after_due_date` when the semantic fact matters more than the
+model's issue-code or field wording. The evaluator checks that condition from
+the immutable invoice and still requires a Semantic DENY. This preserves the
+rule that only dates contained in the invoice are compared; no evaluator or
+validator compares dates with today's date, a system date, or a model cutoff.
+
+Repeated normalized products with different unit prices are a PASS condition
+for Semantic. Reconciliation retains all observed prices and checks each
+source line independently. The focused revision-loop regression controls the
+specialist and critic responses to verify feedback delivery, state replacement,
+revision counting, and normal pipeline continuation without relying on model
+timing or wording.
+
 The current expected root field for the relative-date case is `due_date`; the
 raw `additional_fields.due_date_raw` value is evidence, not a second missing
 field failure. Reconciliation-only observations such as missing

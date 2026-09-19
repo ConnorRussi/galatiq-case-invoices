@@ -41,6 +41,11 @@ with line_amount, infer a due date from payment terms such as Net 30, query or
 compare database values, perform purchase-order or vendor verification, apply
 approval/business thresholds, or determine payment eligibility.
 
+Repeated normalized products may legitimately have different unit prices on
+different source lines. That price difference is not a Semantic contradiction
+and must not cause a Semantic denial; each line is reconciled independently in
+Phase 2 while preserving the observed prices.
+
 Root-cause policy:
 - Prefer one canonical issue for one underlying semantic failure. Do not emit
   both a raw-format issue and a missing-field symptom when the missing value is

@@ -33,8 +33,8 @@ def ingestion(items, **invoice_fields):
     )
 
 
-def critic(decision=CriticDecision.AGREE):
-    return CriticResult(decision=decision, summary="review complete")
+def critic(decision=CriticDecision.AGREE, **kwargs):
+    return CriticResult(decision=decision, summary="review complete", **kwargs)
 
 
 def recon(status=ReconciliationStatus.PASS, issues=None, items=None):
@@ -171,6 +171,7 @@ def test_full_graph_validates_both_stages(monkeypatch):
     assert result.reason == "reconciliation_pass"
     assert result.semantic_critic_result is not None
     assert result.reconciliation_critic_result is not None
+    assert "critic_result" not in result.model_dump(mode="json")
     assert calls == [ValidationStage.SEMANTIC, ValidationStage.RECONCILIATION]
 
 
@@ -294,16 +295,33 @@ def test_reconciliation_consolidation_accuracy_rejects_unexpected_products():
     assert not metrics.overall_reconciliation_match
 
 
-def test_semantic_revision_logs_and_retries_without_a_stage_argument_collision(tmp_path, monkeypatch):
+def test_semantic_revision_loop_updates_state_and_continues(tmp_path, monkeypatch):
     calls = {"semantic": 0, "critic": 0}
+    specialist_feedback = []
+    specialist_previous_results = []
+    critic_feedback = []
 
     def semantic_stub(*args, **kwargs):
         calls["semantic"] += 1
-        return SemanticResult(status=SemanticStatus.PASS, issues=[], summary="semantic pass")
+        specialist_feedback.append(kwargs.get("revision_feedback"))
+        specialist_previous_results.append(kwargs.get("previous_result"))
+        if calls["semantic"] == 1:
+            return SemanticResult(
+                status=SemanticStatus.DENY,
+                issues=[{"code": "temporary_issue", "field": "items", "message": "initial result"}],
+                summary="initial result",
+            )
+        return SemanticResult(status=SemanticStatus.PASS, issues=[], summary="corrected result")
 
     def critic_stub(*args, **kwargs):
         calls["critic"] += 1
-        return critic(CriticDecision.REVISE if calls["critic"] == 1 else CriticDecision.AGREE)
+        critic_feedback.append(kwargs.get("revision_feedback"))
+        if calls["critic"] == 1:
+            return critic(
+                CriticDecision.REVISE,
+                revision_instructions="Re-check the temporary issue and return the corrected result.",
+            )
+        return critic(CriticDecision.AGREE)
 
     monkeypatch.setattr(graph_module, "validate_semantics", semantic_stub)
     monkeypatch.setattr(graph_module, "review_stage", critic_stub)
@@ -318,7 +336,21 @@ def test_semantic_revision_logs_and_retries_without_a_stage_argument_collision(t
     events = [json.loads(line) for line in (run_dir / "events.jsonl").read_text().splitlines()]
     assert result.status == ValidationStatus.VALID
     assert calls == {"semantic": 2, "critic": 2}
+    assert result.semantic_result.status == SemanticStatus.PASS
+    assert result.semantic_result.issues == []
+    assert result.semantic_critic_result is not None
+    assert result.semantic_critic_result.decision == CriticDecision.AGREE
+    assert specialist_feedback == [None, "Re-check the temporary issue and return the corrected result."]
+    assert specialist_previous_results[0] is None
+    assert specialist_previous_results[1].issues[0].code == "temporary_issue"
+    assert critic_feedback == [None, "Re-check the temporary issue and return the corrected result."]
     assert any(event["event"] == "revise" and event["validation_stage"] == "semantic" for event in events)
+    assert any(
+        event["stage"] == "semantic_critic"
+        and event["event"] == "completed"
+        and event["revision_count"] == 1
+        for event in events
+    )
 
 
 def test_reconciliation_revision_logs_and_retries_without_a_stage_argument_collision(tmp_path, monkeypatch):

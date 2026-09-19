@@ -36,13 +36,17 @@ and emits typed models in [`validation/models.py`](../src/invoice_system/validat
 - `CriticResult` contains `AGREE` or `REVISE`, findings, and revision
   instructions. It never returns a specialist PASS/DENY decision.
 - `ValidationResult` contains `VALID` or `DENIED`, a reason, denial stage,
-  issues, the semantic/critic records, and the immutable ingestion snapshot.
+  issues, the immutable ingestion snapshot, and stage-specific specialist and
+  critic records. It deliberately has no generic `critic_result`: that name
+  would change meaning depending on which stage ran last.
 
 The shared Phase 1 scope contract is defined in
 [`validation/policy.py`](../src/invoice_system/validation/policy.py) and is used
 by both the specialist and critic. Semantic validation treats negative
 quantities, relative dates, contradictory dates, invalid values, basic
-usability, and explicitly required fields as semantic concerns. The current
+usability, and explicitly required fields as semantic concerns. Different unit
+prices on repeated normalized products are not a semantic contradiction; they
+remain line-level arithmetic for Reconciliation. The current
 contract does not universally require `invoice_total` or `amount_due`, and does
 not infer due dates from payment terms. It never compares an invoice date with
 today, the system date, or a model knowledge cutoff; only date relationships

@@ -125,6 +125,9 @@ def score_semantic_result(
     semantic_expectation = expected.get("semantic", expected)
     expected_status = _status_value(semantic_expectation.get("expected_status", "PASS"))
     expected_issues = _expected_issues(semantic_expectation)
+    condition_match = _semantic_conditions_match(
+        semantic_expectation.get("expected_conditions", []), result
+    )
     code_coverage = all(
         any(_issue_matches_expected(issue, expected_issue) for issue in semantic.issues)
         for expected_issue in expected_issues
@@ -156,8 +159,6 @@ def score_semantic_result(
 
     status_match = semantic.status.value == expected_status
     semantic_critic = result.semantic_critic_result
-    if semantic_critic is None and result.reconciliation_result is None:
-        semantic_critic = result.critic_result
     critic_completion = semantic_critic is not None and semantic_critic.decision == CriticDecision.AGREE
     overall = (
         status_match
@@ -165,6 +166,7 @@ def score_semantic_result(
         and field_coverage
         and unexpected_blocking == 0
         and denial_stage_match
+        and condition_match
     )
     return SemanticMetrics(
         status_match=status_match,
@@ -176,6 +178,23 @@ def score_semantic_result(
         denial_stage_match=denial_stage_match,
         overall_semantic_match=overall,
     )
+
+
+def _semantic_conditions_match(expected: list[str], result: ValidationResult) -> bool:
+    """Check semantic invariants without coupling goldens to model wording."""
+
+    invoice = result.ingestion.normalization.invoice
+    for condition in expected:
+        if condition == "invoice_date_after_due_date":
+            if (
+                invoice.invoice_date is None
+                or invoice.due_date is None
+                or invoice.invoice_date <= invoice.due_date
+            ):
+                return False
+        else:
+            raise ValueError(f"Unsupported semantic condition: {condition!r}")
+    return True
 
 
 def _evaluate_case_safely(root: Path, expected_path: Path, evaluation_dir: Path) -> SemanticCase:
@@ -299,6 +318,7 @@ def _normalise_field(value: str | None) -> str | None:
 _SEMANTIC_CODE_FAMILIES = {
     "contradictory_dates": "date_order",
     "invoice_date_after_due_date": "date_order",
+    "date_order_invalid": "date_order",
     "negative_quantity": "negative_quantity",
     "negative_unit_price": "negative_unit_price",
     "negative_invoice_total": "negative_invoice_total",

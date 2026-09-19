@@ -44,8 +44,8 @@ def _result(status: SemanticStatus, issues: list[dict] | None = None) -> Validat
         denied_by=ValidationStage.SEMANTIC if status == SemanticStatus.DENY else None,
         issues=semantic.issues,
         semantic_result=semantic,
-        critic_result=critic,
         ingestion=_ingestion(),
+        semantic_critic_result=critic,
     )
 
 
@@ -123,7 +123,7 @@ def test_unexpected_blocking_issue_is_surfaced():
     assert not metrics.overall_semantic_match
 
 
-def test_equivalent_date_order_alias_and_field_are_accepted():
+def test_date_order_condition_accepts_model_specific_issue_code_and_field():
     result = _result(
         SemanticStatus.DENY,
         [{"code": "invoice_date_after_due_date", "field": "invoice_date", "message": "dates conflict"}],
@@ -144,7 +144,7 @@ def test_equivalent_date_order_alias_and_field_are_accepted():
         {
             "semantic": {
                 "expected_status": "DENY",
-                "expected_issues": [{"code": "contradictory_dates", "field": "due_date"}],
+                "expected_conditions": ["invoice_date_after_due_date"],
             }
         },
         result,
@@ -305,7 +305,6 @@ def test_validation_eval_routes_semantic_deny_and_pass_cases_through_one_pipelin
             denied_by=ValidationStage.SEMANTIC if semantic_status == SemanticStatus.DENY else None,
             issues=semantic.issues if reconciliation is None else reconciliation.issues,
             semantic_result=semantic,
-            critic_result=semantic_critic if reconciliation is None else reconciliation_critic,
             ingestion=ingestion,
             semantic_critic_result=semantic_critic,
             reconciliation_result=reconciliation,

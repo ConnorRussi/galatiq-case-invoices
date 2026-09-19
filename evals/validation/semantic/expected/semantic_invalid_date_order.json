@@ -3,7 +3,7 @@
   "input": {"kind": "semantic_fixture", "path": "semantic_invalid_date_order.json"},
   "semantic": {
     "expected_status": "DENY",
-    "expected_issues": [{"code": "contradictory_dates", "field": "due_date"}],
+    "expected_conditions": ["invoice_date_after_due_date"],
     "expected_denial_stage": "semantic"
   }
 }

@@ -283,6 +283,7 @@ def test_semantic_and_critic_use_the_same_scope_contract():
         "DO NOT compare invoice dates against the current date",
         "invoice_date > due_date",
         'invoice_date > "today"',
+        "Repeated normalized products may legitimately have different unit prices",
     ):
         assert phrase in semantic_prompt
         assert phrase in critic_prompt

@@ -136,8 +136,7 @@ def database_critic_node(state: ValidationState) -> dict:
 def _finalize(state: ValidationState, *, status: ValidationStatus, reason: str, denied_by: ValidationStage | None) -> dict:
     ingestion = state.get("original_ingestion")
     semantic_result = state.get("semantic_result")
-    critic_result = state.get("critic_result")
-    if ingestion is None or semantic_result is None or critic_result is None:
+    if ingestion is None or semantic_result is None:
         raise ValueError("finalize requires complete validation state")
     reconciliation_result = state.get("reconciliation_result")
     database_result = state.get("database_result")
@@ -154,7 +153,6 @@ def _finalize(state: ValidationState, *, status: ValidationStatus, reason: str, 
         denied_by=denied_by,
         issues=issues,
         semantic_result=semantic_result,
-        critic_result=critic_result,
         ingestion=ingestion,
         semantic_critic_result=state.get("semantic_critic_result"),
         reconciliation_result=reconciliation_result,

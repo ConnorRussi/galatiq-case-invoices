@@ -147,7 +147,6 @@ class ValidationResult(BaseModel):
     denied_by: ValidationStage | None = None
     issues: list[ValidationIssue] = Field(default_factory=list)
     semantic_result: SemanticResult
-    critic_result: CriticResult
     ingestion: IngestionResult
     semantic_critic_result: CriticResult | None = None
     reconciliation_result: ReconciliationResult | None = None
