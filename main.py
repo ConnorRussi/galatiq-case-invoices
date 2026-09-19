@@ -15,6 +15,7 @@ from invoice_system.ingestion.evaluation import run_evaluation
 from invoice_system.ingestion.models import IngestionStatus
 from invoice_system.ingestion.run_logging import create_normal_run_context
 from invoice_system.ingestion.runner import run_ingestion
+from invoice_system.approval.evaluation import run_approval_evaluation
 from invoice_system.validation import ValidationStatus, run_validation
 from invoice_system.validation.evaluation import run_validation_evaluation
 
@@ -23,6 +24,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Run invoice ingestion or evaluation")
     parser.add_argument("--invoice_path")
     parser.add_argument("--eval-ingestion", action="store_true")
+    parser.add_argument(
+        "--eval-approval",
+        action="store_true",
+        help="Run the standalone final approval evaluation",
+    )
     parser.add_argument(
         "--eval-validation",
         action="store_true",
@@ -45,7 +51,9 @@ def main() -> int:
     )
     args = parser.parse_args()
     validation_eval_flags = (args.eval_validation, args.eval_semantic, args.eval_reconciliation)
-    if args.eval_ingestion and any(validation_eval_flags):
+    if args.eval_ingestion and (args.eval_approval or any(validation_eval_flags)):
+        parser.error("choose only one evaluation mode")
+    if args.eval_approval and any(validation_eval_flags):
         parser.error("choose only one evaluation mode")
     if sum(validation_eval_flags) > 1:
         parser.error("choose only one validation evaluation mode")
@@ -53,6 +61,10 @@ def main() -> int:
         load_dotenv(ROOT / ".env")
         logging.basicConfig(level=logging.INFO, format="%(message)s")
         return 0 if run_evaluation(ROOT) else 1
+    if args.eval_approval:
+        load_dotenv(ROOT / ".env")
+        logging.basicConfig(level=logging.INFO, format="%(message)s")
+        return 0 if run_approval_evaluation(ROOT) else 1
     if any(validation_eval_flags):
         load_dotenv(ROOT / ".env")
         logging.basicConfig(level=logging.INFO, format="%(message)s")

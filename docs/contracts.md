@@ -82,3 +82,14 @@ source lines, matched database identity, requested quantity, and available
 stock. Database validation owns product existence, identity association, and
 inventory sufficiency; it does not redo Semantic checks, arithmetic, or
 consolidation.
+
+## Approval contracts
+
+`ApprovalRequest` is the isolated handoff into approval. It contains the
+normalized invoice, optional source document, and trusted upstream validation
+and reconciliation results. `BusinessRuleDecision` is one of `ACCEPT`,
+`REJECT`, or `VP_REVIEW`; `VPDecision` is `GO` or `NO_GO`.
+
+`ApprovalResult` is the terminal approval contract. It records `APPROVED` or
+`REJECTED`, the decision source, both structured decisions when applicable, and
+the final reasoning. It does not perform or authorize a payment side effect.

@@ -12,6 +12,10 @@ Required settings are `TAMUS_AI_CHAT_API_KEY` and `TAMUS_AI_CHAT_MODEL`.
 `TAMUS_AI_CHAT_API_ENDPOINT` defaults to `https://chat-api.tamu.ai`.
 LangSmith tracing is optional.
 
+Approval model selection uses `BUSINESS_RULE_MODEL` for the Business Rule Agent.
+The VP Agent uses `VP_REASONING_MODEL`, then `VP_MODEL`, then
+`BUSINESS_RULE_MODEL`, then `TAMUS_AI_CHAT_MODEL`.
+
 ## Failure and retry behavior
 
 - Transport failures are retried up to three attempts.
@@ -42,6 +46,7 @@ python main.py --invoice_path=data/invoices/invoice_1001.txt
 python main.py --invoice_path=data/invoices/invoice_1001.txt --validate
 python main.py --eval-ingestion
 python main.py --eval-validation
+python main.py --eval-approval
 python -m pytest
 ```
 
@@ -59,3 +64,9 @@ PASS cases through Database when expected. It does not rerun ingestion. The
 older `--eval-semantic` and `--eval-reconciliation` flags remain compatibility
 aliases for this same end-to-end evaluation; they are not separate stage
 evaluators.
+
+`--eval-approval` runs only the final approval boundary against trusted cases
+whose supplied upstream statuses are `VALID` and `PASS`. It checks the direct
+business-rule bucket, whether the VP branch was invoked, the VP decision, and
+the final `APPROVED`/`REJECTED` bucket. It does not run ingestion, validation,
+or payment.

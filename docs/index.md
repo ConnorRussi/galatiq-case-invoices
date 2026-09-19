@@ -12,12 +12,13 @@ before changing code.
 CLI (main.py)
   -> ingestion runner -> IngestionResult
   -> optional validation runner -> ValidationResult
+  -> standalone approval runner -> ApprovalResult
   -> shared run artifacts (ingestion/run_logging.py)
 ```
 
-The implemented boundary includes evidence-preserving ingestion and the
-Validation Agent pipeline: Phase 1 Semantic, Phase 2 Reconciliation, and
-Phase 3 Database validation. Approval and payment are future domains.
+The implemented boundaries include evidence-preserving ingestion, the
+Validation Agent pipeline, and an isolated Approval Agent boundary. Approval is
+not yet wired into the validation runner, and payment remains out of scope.
 
 ## Start here
 
@@ -37,7 +38,7 @@ tools, policies, and acceptance checks can grow without making this hub a
 single long document.
 
 - [Validation agent](agents/validation/overview.md) — Semantic, Reconciliation, and Database stages; business rules are planned.
-- [Acceptance agent](agents/acceptance/overview.md) — planned final decision boundary.
+- [Acceptance agent](agents/acceptance/overview.md) — isolated approval decision boundary and evaluation.
 - [Agent documentation maintenance](agent-maintenance.md) — page template and checklist.
 
 ## Graph vocabulary

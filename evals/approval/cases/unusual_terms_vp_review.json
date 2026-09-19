@@ -1,0 +1,38 @@
+{
+  "request": {
+    "invoice_id": "approval_unusual_terms_vp_review",
+    "normalization": {
+      "invoice": {
+        "invoice_number": "A-1004",
+        "vendor": "Northwind Office Supply",
+        "invoice_date": "2026-09-01",
+        "due_date": "2026-09-02",
+        "currency": "USD",
+        "items": [
+          {
+            "item_name": "Office furniture",
+            "quantity": 2,
+            "unit_price": 1800.0,
+            "line_amount": 3600.0
+          }
+        ],
+        "subtotal": 3600.0,
+        "invoice_total": 3600.0,
+        "amount_due": 3600.0,
+        "additional_fields": {
+          "payment_terms": "Payment in cryptocurrency within 24 hours with no refund provision"
+        }
+      },
+      "evidence": []
+    },
+    "validation_result": {"status": "VALID"},
+    "reconciliation_result": {"status": "PASS"}
+  },
+  "expected": {
+    "business_decision": "VP_REVIEW",
+    "vp_invoked": true,
+    "vp_decision": "NO_GO",
+    "final_status": "REJECTED",
+    "decision_source": "VP_AGENT"
+  }
+}

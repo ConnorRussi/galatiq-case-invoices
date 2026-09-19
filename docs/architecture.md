@@ -24,6 +24,8 @@ and performs at most two targeted revisions before producing a terminal result.
 | Validation | [`validation/runner.py`](../src/invoice_system/validation/runner.py) | Run the Semantic boundary or full Semantic -> Reconciliation -> Database graph | `ValidationResult` |
 | Shared validation critic | [`validation/critic.py`](../src/invoice_system/validation/critic.py) | Review specialist work and route revisions | `CriticResult` |
 | Database validation | [`validation/database_runner.py`](../src/invoice_system/validation/database_runner.py) | Run bounded bulk inventory lookup and shared-critic review | `DatabaseExecution` |
+| Approval | [`approval/graph.py`](../src/invoice_system/approval/graph.py), [`approval/runner.py`](../src/invoice_system/approval/runner.py) | Apply business policy and route escalations to VP review | `ApprovalResult` |
+| Approval evaluation | [`approval/evaluation.py`](../src/invoice_system/approval/evaluation.py) | Score direct decisions, VP routing, and final buckets | `logs/evals/<evaluation_id>/approval/` |
 
 ## Data flow
 
@@ -32,14 +34,15 @@ optional revised NormalizationResult -> IngestionResult -> SemanticResult ->
 CriticResult -> ReconciliationResult -> CriticResult -> DatabaseResult ->
 CriticResult -> ValidationResult`
 
+The standalone approval handoff is `trusted VALID/PASS inputs ->
+ApprovalRequest -> Business Rule Agent -> optional VP Agent -> ApprovalResult`.
+
 The source is never rewritten by normalization or critique. Evidence points
 back to source chunk IDs and optional quoted source text. Financial values use
 `Decimal`; JSON-safe model serialization preserves precision.
 
 ## Explicit non-goals today
 
-The original case narrative mentions approval, banking, and payment. Business/
-acceptance and payment agents are not implemented in the current package.
-Documentation extension points live under
-[`docs/agents/`](agents/), and new code must add a real boundary, contract,
-tests, and documentation before calling a domain implemented.
+The original case narrative mentions banking and payment. Approval is currently
+implemented only as an isolated, auditable decision boundary; it is not yet
+connected to the validation runner, and no payment side effect exists.

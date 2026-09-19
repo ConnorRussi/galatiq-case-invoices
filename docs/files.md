@@ -7,7 +7,7 @@ bytecode, local credentials, and build metadata are intentionally omitted.
 
 | Path | Role | Connected docs |
 | --- | --- | --- |
-| [`main.py`](../main.py) | CLI for one run, `--eval-ingestion`, or the Validation Agent evaluation | [architecture](architecture.md), [runtime](runtime.md) |
+| [`main.py`](../main.py) | CLI for one run, ingestion/validation evaluations, or the standalone approval evaluation | [architecture](architecture.md), [runtime](runtime.md) |
 | [`pyproject.toml`](../pyproject.toml) | Python metadata and optional dependencies | [runtime](runtime.md) |
 | [`.env.example`](../.env.example) | Credential-free configuration template | [runtime](runtime.md) |
 | [`README.md`](../README.md) | Existing project overview and case context | [architecture](architecture.md) |
@@ -38,6 +38,8 @@ bytecode, local credentials, and build metadata are intentionally omitted.
 | [`src/invoice_system/validation/database.py`](../src/invoice_system/validation/database.py) | Agent-directed, bounded inventory lookup rounds and database scope prompt |
 | [`src/invoice_system/validation/database_tool.py`](../src/invoice_system/validation/database_tool.py) | Exact read-only bulk SQLite lookup boundary |
 | [`src/invoice_system/validation/database_runner.py`](../src/invoice_system/validation/database_runner.py) | Database specialist and shared-critic execution boundary |
+| [`src/invoice_system/approval/`](../src/invoice_system/approval/) | Business-rule and VP approval contracts, graph, runner, policy, and audit logging |
+| [`src/invoice_system/approval/evaluation.py`](../src/invoice_system/approval/evaluation.py) | Approval routing and final-bucket evaluator |
 
 ## Inputs and verification
 
@@ -47,5 +49,6 @@ bytecode, local credentials, and build metadata are intentionally omitted.
 | [`evals/ingestion/expected/`](../evals/ingestion/expected/) | Expected normalized outputs |
 | [`evals/validation/semantic/`](../evals/validation/semantic/) | Semantic expectations, controlled fixtures, and critic cases; references ingestion goldens without changing them |
 | [`evals/validation/reconciliation/`](../evals/validation/reconciliation/) | Controlled Phase 2 fixtures, expected results, and critic cases |
+| [`evals/approval/cases/`](../evals/approval/cases/) | Trusted upstream-pass cases for approval routing and final-status evaluation |
 | [`tests/`](../tests/) | Runtime, ingestion, and policy tests |
 | [`inventory.sqlite`](../inventory.sqlite) | Existing case database used by Phase 3 Database validation |

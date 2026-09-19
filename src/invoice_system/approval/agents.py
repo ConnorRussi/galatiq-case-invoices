@@ -62,5 +62,11 @@ upstream result, explain that in NO_GO reasoning."""
         system_prompt=system_prompt,
         content=content,
         output_model=VPDecision,
-        model=os.getenv("VP_MODEL") or os.getenv("BUSINESS_RULE_MODEL") or os.getenv("TAMUS_AI_CHAT_MODEL"),
+        model=(
+            os.getenv("VP_REASONING_MODEL")
+            or os.getenv("VP_REASONING_MODEL-NAME")  # legacy local spelling
+            or os.getenv("VP_MODEL")
+            or os.getenv("BUSINESS_RULE_MODEL")
+            or os.getenv("TAMUS_AI_CHAT_MODEL")
+        ),
     )

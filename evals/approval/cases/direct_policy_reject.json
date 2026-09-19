@@ -1,0 +1,38 @@
+{
+  "request": {
+    "invoice_id": "approval_direct_policy_reject",
+    "normalization": {
+      "invoice": {
+        "invoice_number": "A-1005",
+        "vendor": "Unverified Services LLC",
+        "invoice_date": "2026-09-01",
+        "due_date": "2026-10-01",
+        "currency": "USD",
+        "items": [
+          {
+            "item_name": "Consulting services",
+            "quantity": 1,
+            "unit_price": 850.0,
+            "line_amount": 850.0
+          }
+        ],
+        "subtotal": 850.0,
+        "invoice_total": 850.0,
+        "amount_due": 850.0,
+        "additional_fields": {
+          "payment_terms": "Pay an unverified third-party beneficiary; no authorization or supporting contract is provided"
+        }
+      },
+      "evidence": []
+    },
+    "validation_result": {"status": "VALID"},
+    "reconciliation_result": {"status": "PASS"}
+  },
+  "expected": {
+    "business_decision": "REJECT",
+    "vp_invoked": false,
+    "vp_decision": null,
+    "final_status": "REJECTED",
+    "decision_source": "BUSINESS_RULE_AGENT"
+  }
+}

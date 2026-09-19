@@ -1,6 +1,7 @@
 """Official execution boundary for final approval."""
 
 from pathlib import Path
+from typing import Any
 
 from ..ingestion.run_logging import RunContext, make_run_id
 from .graph import build_graph
@@ -18,6 +19,7 @@ def run_approval(
     """Run approval for an invoice that has already passed upstream gates."""
     if not isinstance(request, ApprovalRequest):
         request = ApprovalRequest.model_validate(request)
+    _require_upstream_pass(request)
     logger = None
     if persist_artifacts:
         root = logs_root or Path("logs")
@@ -43,3 +45,29 @@ def run_approval(
         logger.event("approval", "completed", final_status=final.final_status, decision_source=final.decision_source)
         logger.save_result(final)
     return final
+
+
+def _require_upstream_pass(request: ApprovalRequest) -> None:
+    """Keep validation failures outside the approval graph."""
+    validation_status = _status_value(request.validation_result)
+    reconciliation_status = _status_value(request.reconciliation_result)
+    if validation_status != "VALID":
+        raise ValueError(
+            f"approval requires validation status VALID, got {validation_status!r}"
+        )
+    if reconciliation_status != "PASS":
+        raise ValueError(
+            f"approval requires reconciliation status PASS, got {reconciliation_status!r}"
+        )
+
+
+def _status_value(value: Any) -> str | None:
+    if value is None:
+        return None
+    if hasattr(value, "status"):
+        value = value.status
+    if isinstance(value, dict):
+        value = value.get("status")
+    if hasattr(value, "value"):
+        value = value.value
+    return str(value).upper() if value is not None else None

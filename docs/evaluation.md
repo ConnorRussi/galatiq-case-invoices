@@ -8,6 +8,10 @@ The Validation Agent evaluation is implemented by
 [`src/invoice_system/validation/evaluation.py`](../src/invoice_system/validation/evaluation.py)
 and invoked with `python main.py --eval-validation`.
 
+The standalone Approval evaluation is implemented by
+[`src/invoice_system/approval/evaluation.py`](../src/invoice_system/approval/evaluation.py)
+and invoked with `python main.py --eval-approval`.
+
 ## What is checked
 
 The evaluator runs expected fixtures under
@@ -124,3 +128,17 @@ status, issue codes, product-found and matched-record identity, requested and
 available quantities, and consolidated-item source-line mappings. Natural
 language explanations are not compared, and there is no standalone Phase 3
 evaluation framework.
+
+## Approval evaluation
+
+Approval cases under [`evals/approval/cases/`](../evals/approval/cases/) provide
+trusted normalized invoices and upstream `VALID`/`PASS` results. They exercise
+the real approval graph without rerunning prior pipelines. The evaluator checks
+the Business Rule decision, whether VP was invoked, the VP decision, the final
+status, and the decision source. It deliberately does not compare free-form
+reasoning text.
+
+The suite contains direct acceptance, VP-approved escalation, VP-rejected
+escalation, and unusual-payment-term routing. Each run writes case artifacts
+under `logs/evals/<evaluation_id>/approval/`, including expected inputs,
+approval events, the actual result, and `summary.json`.

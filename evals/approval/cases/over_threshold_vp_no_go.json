@@ -1,0 +1,38 @@
+{
+  "request": {
+    "invoice_id": "approval_over_threshold_vp_no_go",
+    "normalization": {
+      "invoice": {
+        "invoice_number": "A-1003",
+        "vendor": "Unknown Overseas Vendor",
+        "invoice_date": "2026-09-01",
+        "due_date": "2026-09-03",
+        "currency": "USD",
+        "items": [
+          {
+            "item_name": "Emergency equipment",
+            "quantity": 1,
+            "unit_price": 15000.0,
+            "line_amount": 15000.0
+          }
+        ],
+        "subtotal": 15000.0,
+        "invoice_total": 15000.0,
+        "amount_due": 15000.0,
+        "additional_fields": {
+          "payment_terms": "Immediate wire to an unverified third-party account"
+        }
+      },
+      "evidence": []
+    },
+    "validation_result": {"status": "VALID"},
+    "reconciliation_result": {"status": "PASS"}
+  },
+  "expected": {
+    "business_decision": "VP_REVIEW",
+    "vp_invoked": true,
+    "vp_decision": "NO_GO",
+    "final_status": "REJECTED",
+    "decision_source": "VP_AGENT"
+  }
+}

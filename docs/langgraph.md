@@ -58,6 +58,13 @@ graph does not mutate the ingestion invoice. A
 critic-confirmed Semantic DENY never reaches Reconciliation. A critic-confirmed
 Reconciliation DENY never reaches Database.
 
+The standalone approval graph is defined in
+[`approval/graph.py`](../src/invoice_system/approval/graph.py).
+
+The completion node maps direct `ACCEPT` to `APPROVED` and direct `REJECT` to
+`REJECTED`. On the VP branch, `GO` maps to `APPROVED` and `NO_GO` maps to
+`REJECTED`. VP is never invoked for direct business-rule decisions.
+
 ## Change rules
 
 When adding a node, document its input/output contract, route, revision or
