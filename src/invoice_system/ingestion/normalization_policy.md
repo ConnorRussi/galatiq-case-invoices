@@ -5,6 +5,9 @@ Normalization converts source claims into a consistent representation while pres
 - Only populate fields supported by the source.
 - Currency is the sole use-case default: assume USD when the source does not specify a currency. Preserve an explicitly stated currency (including EUR); never convert monetary values. USD requires no source quotation under this assumption and must not be presented as source evidence unless actually stated. Any other currency requires source evidence.
 - Do not calculate or derive missing business values such as totals, subtotals, line amounts, tax, or dates.
+- Explicit labels are source claims, not derived values: map `Total Amount`,
+  `Grand Total`, `Invoice Total`, or `Total` to `invoice_total`; map `Amount Due`,
+  `Balance Due`, or `Total Due` to `amount_due`.
 - When a source states a percentage tax rate, normalize it to a decimal fraction (`6%` → `0.06`).
 - Normalize representation without changing meaning:
   - trim whitespace;

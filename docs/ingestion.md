@@ -13,8 +13,11 @@ terminal status. The separate Phase 1 validation graph consumes this result.
    UTF-8 for text-like inputs, preserves source text, and emits immutable
    [`SourceDocument`](contracts.md#source-and-normalization-contracts) chunks.
 2. `normalize` sends the source and schema to the configured model. It does not
-   derive values that the source does not support. Field evidence is separate
-   from invoice claims.
+   derive values that the source does not support. Explicit source labels such as
+   `Total Amount`, `Grand Total`, `Invoice Total`, `Amount Due`, `Balance Due`,
+   and `Total Due` are mechanically mapped to typed monetary fields after the
+   model response; this is source extraction, not calculation. Field evidence is
+   separate from invoice claims.
 3. `critic` reviews the candidate against the same source and policy. It can
    identify incorrect values, missing information, unsupported inference,
    structure mismatches, and evidence problems.
@@ -31,6 +34,8 @@ terminal status. The separate Phase 1 validation graph consumes this result.
 - CSV header and row structure is preserved.
 - Blank or textless PDF pages fail conservatively because OCR is not installed.
 - A technical failure never fabricates an invoice.
+- An explicit source total cannot remain only in `additional_fields.amount_raw`;
+  it must be represented as `invoice_total` or `amount_due` with source evidence.
 - Critique must not turn formatting-equivalent or policy-permitted values into
   false corrections; regression tests enforce this.
 - Validation receives a detached snapshot of the result and never rewrites the

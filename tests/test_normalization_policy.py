@@ -128,3 +128,5 @@ def test_policy_defines_tax_rate_and_canonical_raw_field_rules():
     assert "former_vendor_name" in policy
     assert "due_date_raw" in policy
     assert "amount_raw" in policy
+    assert "Total Amount" in policy
+    assert "Amount Due" in policy

@@ -48,8 +48,10 @@ not flag suspicious payment terms or other business concerns.
 Do not flag 250 versus 250.00, minor product-name spacing or formatting, or
 canonical additional-field spelling such as note versus notes. Do not flag an
 ambiguous Amt/Amount label when the original amount is preserved anywhere in the
-normalized output, even if it is not assigned to a typed total field. Do not flag
-OCR normalization when the raw source claim remains in evidence or an additional
+normalized output, even if it is not assigned to a typed total field. Conversely,
+if the source uses an explicit label such as Total Amount, Grand Total, Invoice
+Total, Amount Due, Balance Due, or Total Due, require the claim in the corresponding
+typed field rather than only in amount_raw. Do not flag OCR normalization when the raw source claim remains in evidence or an additional
 field. Do not flag correctly preserved source mistakes, values left null because
 they are ambiguous, arithmetic mismatches, or missing derived values.
 Do not flag formatting-equivalent Decimal values.

@@ -2,6 +2,7 @@
 
 import json
 import re
+from decimal import Decimal, InvalidOperation
 
 from invoice_system.agent_runtime import invoke_structured
 
@@ -32,6 +33,11 @@ to subtotal, invoice_total, or amount_due, even when item arithmetic happens to
 match. Preserve the raw amount instead. Use canonical additional-field names,
 including notes (never note), and extract a clearly identified purchase order
 from a larger note while preserving the complete note unchanged.
+
+Treat explicitly labeled totals as typed source claims: "Total Amount", "Grand
+Total", "Invoice Total", and "Total" map to invoice_total; "Amount Due",
+"Balance Due", and "Total Due" map to amount_due. This is source extraction,
+not calculation. Preserve evidence for the exact label and amount.
 
 Return evidence separately from invoice. Include evidence for every populated
 common field (subject to the policy's currency-default exception), each populated
@@ -90,6 +96,22 @@ _GENERIC_AMOUNT_PATTERN = re.compile(
     r"\b(?:amt|amount)\s*[:#]?\s*(?P<value>[$€£]?\s*-?[\d][\d,]*(?:\.\d+)?)",
     re.IGNORECASE,
 )
+_EXPLICIT_AMOUNT_PATTERNS = (
+    (
+        "amount_due",
+        re.compile(
+            r"(?im)^\s*(?:amount\s+due|balance\s+due|total\s+due)"
+            r"\s*(?:[:#,=-]\s*)?(?P<value>[$\u20ac\u00a3]?\s*-?[\d][\d,]*(?:\.\d+)?)"
+        ),
+    ),
+    (
+        "invoice_total",
+        re.compile(
+            r"(?im)^\s*(?:invoice\s+total|grand\s+total|total\s+amount|total)"
+            r"\s*(?:[:#,=-]\s*)?(?P<value>[$\u20ac\u00a3]?\s*-?[\d][\d,]*(?:\.\d+)?)"
+        ),
+    ),
+)
 
 
 def _enforce_normalization_contract(
@@ -105,6 +127,7 @@ def _enforce_normalization_contract(
     _canonicalize_additional_field_names(normalization)
     _extract_embedded_purchase_order(normalization)
     _demote_ambiguous_amounts(source, normalization)
+    _promote_explicit_amounts(source, normalization)
     _canonicalize_evidence_paths(normalization)
     _add_missing_purchase_order_evidence(source, normalization)
     return normalization
@@ -189,6 +212,77 @@ def _demote_ambiguous_amounts(source: SourceDocument, normalization: Normalizati
                     source_text=source_match[1].group(0),
                 )
             )
+
+
+def _promote_explicit_amounts(source: SourceDocument, normalization: NormalizationResult) -> None:
+    """Capture clearly labeled source totals in typed invoice fields.
+
+    This is a source-to-schema mapping, not a calculated fallback. It prevents
+    an LLM from stranding an explicit payable amount in ``amount_raw`` by choosing
+    the wrong schema field.
+    """
+
+    invoice = normalization.invoice
+    for field_name, pattern in _EXPLICIT_AMOUNT_PATTERNS:
+        match = None
+        source_chunk = None
+        for chunk in source.chunks:
+            candidate = pattern.search(chunk.text)
+            if candidate is not None:
+                match = candidate
+                source_chunk = chunk
+                break
+        if match is None or source_chunk is None:
+            continue
+        try:
+            value = Decimal(
+                match.group("value")
+                .replace(",", "")
+                .replace(" ", "")
+                .replace("$", "")
+                .replace("\u20ac", "")
+                .replace("\u00a3", "")
+                .lstrip("$€£")
+            )
+        except (InvalidOperation, ValueError):
+            continue
+
+        setattr(invoice, field_name, value)
+        source_text = match.group(0).strip()
+        evidence = next(
+            (item for item in normalization.evidence if item.field_path == field_name),
+            None,
+        )
+        if evidence is None:
+            raw_evidence = next(
+                (
+                    item
+                    for item in normalization.evidence
+                    if item.field_path == "additional_fields.amount_raw"
+                    and item.source_text
+                    and match.group("value").replace(" ", "")
+                    in item.source_text.replace(" ", "")
+                ),
+                None,
+            )
+            if raw_evidence is not None:
+                raw_evidence.field_path = field_name
+                raw_evidence.source_text = source_text
+            else:
+                normalization.evidence.append(
+                    FieldEvidence(
+                        field_path=field_name,
+                        source_chunk_ids=[source_chunk.id],
+                        source_text=source_text,
+                    )
+                )
+        else:
+            evidence.source_chunk_ids = [source_chunk.id]
+            evidence.source_text = source_text
+
+        raw_value = invoice.additional_fields.get("amount_raw")
+        if isinstance(raw_value, str) and raw_value.replace(" ", "") == match.group("value").replace(" ", ""):
+            invoice.additional_fields.pop("amount_raw", None)
 
 
 def _canonicalize_evidence_paths(normalization: NormalizationResult) -> None:

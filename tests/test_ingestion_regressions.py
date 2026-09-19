@@ -136,6 +136,27 @@ def test_normalizer_contract_handles_blank_ambiguous_amount_notes_and_embedded_p
     }
 
 
+def test_normalizer_contract_promotes_explicit_total_and_amount_due(monkeypatch):
+    source_document = source('Total Amount: $5,000.00\nAmount Due: $4,500.00')
+    candidate = NormalizationResult(invoice={
+        'additional_fields': {'amount_raw': '$5,000.00'},
+    }, evidence=[
+        {
+            'field_path': 'additional_fields.amount_raw',
+            'source_chunk_ids': ['text_1'],
+            'source_text': 'Total Amount: $5,000.00',
+        },
+    ])
+    monkeypatch.setattr(normalizer, 'invoke_structured', lambda **kw: candidate)
+
+    result = normalizer.normalize(source_document)
+
+    assert result.invoice.invoice_total == Decimal('5000.00')
+    assert result.invoice.amount_due == Decimal('4500.00')
+    assert 'amount_raw' not in result.invoice.additional_fields
+    assert {item.field_path for item in result.evidence} >= {'invoice_total', 'amount_due'}
+
+
 def test_invalid_revision_preserves_last_valid_candidate(monkeypatch):
     previous = NormalizationResult(invoice={'invoice_total': '250'}, evidence=[])
     review = CritiqueResult(issues=[{
