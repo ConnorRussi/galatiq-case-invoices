@@ -18,8 +18,10 @@ START -> semantic -> semantic_critic
 ```
 
 With `include_reconciliation=True`, a critic-confirmed Semantic PASS routes to
-`reconciliation -> reconciliation_critic`; a confirmed Phase 2 DENY finalizes
-the validation as denied, while a confirmed PASS finalizes as valid. The
+`reconciliation -> reconciliation_critic`. With `include_database=True`, a
+confirmed Phase 2 PASS continues to `database -> database_critic`; a confirmed
+Phase 3 DENY finalizes the validation as denied, while a confirmed PASS
+finalizes as valid. The
 default runner mode remains the isolated Phase 1 graph so the Semantic
 evaluator does not execute later-stage work.
 
@@ -41,6 +43,8 @@ short-circuits this prototype before any future downstream stages.
 | `semantic_critic` | ingestion snapshot, semantic result | `critic_result`, revision routing | Shared critic; never decides PASS/DENY itself |
 | `reconciliation` | immutable ingestion snapshot, revision feedback | `reconciliation_result` | Decimal-backed arithmetic and consolidation specialist |
 | `reconciliation_critic` | ingestion snapshot, reconciliation result | `critic_result`, revision routing | Shared critic; verifies Phase 2 arithmetic and scope |
+| `database` | ingestion snapshot, consolidated Reconciliation items | `database_result` | Bulk inventory lookup and product/quantity checks |
+| `database_critic` | ingestion snapshot, database result | `critic_result`, revision routing | Shared critic; verifies lookup history, identity, and stock conclusion |
 | `finalize_valid_for_phase_1` | confirmed semantic PASS | `final_result` | Phase 1 PASS endpoint |
 | `finalize_denied` / `finalize_unresolved` | confirmed DENY or exhausted revisions | `final_result` | Fail closed; unresolved reason is `unresolved_validation` |
 
@@ -49,7 +53,8 @@ Validation state is declared in
 deep snapshot of the original `IngestionResult`, semantic and reconciliation
 results, both critic records, per-stage revision feedback/count, current stage,
 and final result. The validation graph does not mutate the ingestion invoice. A
-critic-confirmed Semantic DENY never reaches Reconciliation.
+critic-confirmed Semantic DENY never reaches Reconciliation. A critic-confirmed
+Reconciliation DENY never reaches Database.
 
 ## Change rules
 

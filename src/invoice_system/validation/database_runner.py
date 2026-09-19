@@ -15,6 +15,7 @@ from .models import (
     CriticDecision,
     CriticResult,
     DatabaseValidationResult,
+    ReconciliationResult,
     ValidationStage,
 )
 
@@ -36,6 +37,7 @@ def run_database_validation(
     db_path: str | Path = DEFAULT_DATABASE_PATH,
     retry_proposer: RetryProposer | None = None,
     progress_callback: ProgressCallback | None = None,
+    reconciliation_result: ReconciliationResult | None = None,
 ) -> DatabaseExecution:
     """Run bounded database-specialist and shared-critic revisions."""
 
@@ -48,12 +50,14 @@ def run_database_validation(
             progress_callback(
                 f"database specialist attempt {attempt + 1}/{MAX_CRITIC_REVISIONS + 1} started"
             )
-        result = resolve_inventory(
-            snapshot,
-            db_path=db_path,
-            retry_proposer=retry_proposer,
-            revision_feedback=feedback,
-        )
+        lookup_kwargs = {
+            "db_path": db_path,
+            "retry_proposer": retry_proposer,
+            "revision_feedback": feedback,
+        }
+        if reconciliation_result is not None:
+            lookup_kwargs["reconciliation_result"] = reconciliation_result
+        result = resolve_inventory(snapshot, **lookup_kwargs)
         critic = review_stage(
             snapshot,
             ValidationStage.DATABASE,

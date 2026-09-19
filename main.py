@@ -41,7 +41,7 @@ def main() -> int:
     parser.add_argument(
         "--validate",
         action="store_true",
-        help="Run Semantic and Reconciliation validation after ingestion",
+        help="Run Semantic, Reconciliation, and Database validation after ingestion",
     )
     args = parser.parse_args()
     validation_eval_flags = (args.eval_validation, args.eval_semantic, args.eval_reconciliation)
@@ -72,7 +72,12 @@ def main() -> int:
     if result.status == IngestionStatus.TECHNICAL_FAILURE:
         return 1
     if args.validate:
-        validation = run_validation(result, artifact_context=context, run_reconciliation=True)
+        validation = run_validation(
+            result,
+            artifact_context=context,
+            run_reconciliation=True,
+            run_database=True,
+        )
         print(f"Validation status: {validation.status.value}")
         print(validation.model_dump_json(indent=2))
         return 1 if validation.status == ValidationStatus.DENIED else 0

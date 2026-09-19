@@ -8,9 +8,13 @@ from invoice_system.validation import reconciliation_evaluation as evaluation
 from invoice_system.validation import reconciliation_runner as reconciliation_runner_module
 from invoice_system.validation import reconciliation as reconciliation_module
 from invoice_system.validation import graph as graph_module
+from invoice_system.validation.database_tool import InventoryLookup
 from invoice_system.validation.models import (
     CriticDecision,
     CriticResult,
+    DatabaseResult,
+    DatabaseStatus,
+    DatabaseValidationResult,
     ReconciliationResult,
     ReconciliationStatus,
     SemanticResult,
@@ -168,6 +172,53 @@ def test_full_graph_validates_both_stages(monkeypatch):
     assert result.semantic_critic_result is not None
     assert result.reconciliation_critic_result is not None
     assert calls == [ValidationStage.SEMANTIC, ValidationStage.RECONCILIATION]
+
+
+def test_database_runs_only_after_reconciliation_pass(monkeypatch):
+    calls = []
+    monkeypatch.setattr(graph_module, "validate_semantics", lambda *a, **k: SemanticResult(status=SemanticStatus.PASS, issues=[], summary="semantic pass"))
+    monkeypatch.setattr(graph_module, "validate_reconciliation", lambda *a, **k: recon())
+    monkeypatch.setattr(
+        graph_module,
+        "resolve_inventory",
+        lambda *a, **k: (calls.append(ValidationStage.DATABASE) or DatabaseValidationResult(status=DatabaseStatus.PASS, summary="database pass")),
+    )
+
+    def review(*args, **kwargs):
+        calls.append(args[1])
+        return critic()
+
+    monkeypatch.setattr(graph_module, "review_stage", review)
+    result = runner.run_validation(ingestion([]), persist_artifacts=False, run_database=True)
+
+    assert result.status == ValidationStatus.VALID
+    assert result.reason == "database_pass"
+    assert result.database_result is not None
+    assert calls == [ValidationStage.SEMANTIC, ValidationStage.RECONCILIATION, ValidationStage.DATABASE, ValidationStage.DATABASE]
+
+
+def test_database_uses_consolidated_quantity_and_mapping(monkeypatch):
+    captured = []
+    monkeypatch.setattr(
+        "invoice_system.validation.database.lookup_inventory_bulk",
+        lambda names, **kwargs: (captured.extend(names) or [
+            InventoryLookup(requested_name="Gadget A", matched_item="GadgetA", available_stock=12, product_found=True)
+        ]),
+    )
+    result = __import__("invoice_system.validation.database", fromlist=["resolve_inventory"]).resolve_inventory(
+        ingestion([
+            {"item_name": "Gadget A", "quantity": "5"},
+            {"item_name": "Gadget A", "quantity": "3"},
+        ]),
+        reconciliation_result=recon(items=[
+            {"product_name": "Gadget A", "normalized_product": "gadget a", "combined_quantity": "8", "source_lines": [1, 2]}
+        ]),
+        retry_proposer=lambda unresolved: [],
+    )
+
+    assert captured == ["Gadget A"]
+    assert result.results[0].requested_quantity == Decimal("8")
+    assert result.results[0].source_lines == [1, 2]
 
 
 def test_reconciliation_scoring_uses_structured_metrics_not_prose():

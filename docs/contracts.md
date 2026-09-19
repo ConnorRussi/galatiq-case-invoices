@@ -68,3 +68,13 @@ consolidated product identity/quantity/source lines, and Decimal-safe
 calculation records. It owns invoice arithmetic and duplicate consolidation;
 inventory, database lookup, approval thresholds, and payment policy remain
 later-stage concerns.
+
+## Database contracts
+
+`DatabaseValidationResult` contains a `PASS`/`DENY` status, structured issue
+codes, and one `DatabaseResult` per consolidated product. Each result records
+the requested and attempted product names, normalized consolidated product,
+source lines, matched database identity, requested quantity, and available
+stock. Database validation owns product existence, identity association, and
+inventory sufficiency; it does not redo Semantic checks, arithmetic, or
+consolidation.

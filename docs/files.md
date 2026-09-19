@@ -29,7 +29,7 @@ bytecode, local credentials, and build metadata are intentionally omitted.
 | [`src/invoice_system/ingestion/runner.py`](../src/invoice_system/ingestion/runner.py) | Official execution and persistence boundary |
 | [`src/invoice_system/ingestion/run_logging.py`](../src/invoice_system/ingestion/run_logging.py) | Run IDs, events, and JSON artifacts |
 | [`src/invoice_system/ingestion/evaluation.py`](../src/invoice_system/ingestion/evaluation.py) | Golden comparison and adversarial checks |
-| [`src/invoice_system/validation/`](../src/invoice_system/validation/) | Semantic, Reconciliation, and isolated Database agents, shared critic, typed contracts, graphs, and runners |
+| [`src/invoice_system/validation/`](../src/invoice_system/validation/) | Semantic -> Reconciliation -> Database agents, shared critic, typed contracts, graphs, and runners |
 | [`src/invoice_system/validation/evaluation.py`](../src/invoice_system/validation/evaluation.py) | End-to-end Validation Agent scoring, routing checks, artifacts, and terminal output |
 | [`src/invoice_system/validation/reconciliation.py`](../src/invoice_system/validation/reconciliation.py) | Phase 2 specialist and scope contract |
 | [`src/invoice_system/validation/arithmetic.py`](../src/invoice_system/validation/arithmetic.py) | Decimal-safe arithmetic and consolidation evidence |
@@ -48,4 +48,4 @@ bytecode, local credentials, and build metadata are intentionally omitted.
 | [`evals/validation/semantic/`](../evals/validation/semantic/) | Semantic expectations, controlled fixtures, and critic cases; references ingestion goldens without changing them |
 | [`evals/validation/reconciliation/`](../evals/validation/reconciliation/) | Controlled Phase 2 fixtures, expected results, and critic cases |
 | [`tests/`](../tests/) | Runtime, ingestion, and policy tests |
-| [`inventory.sqlite`](../inventory.sqlite) | Existing case database used by the isolated Database validation API |
+| [`inventory.sqlite`](../inventory.sqlite) | Existing case database used by Phase 3 Database validation |

@@ -6,6 +6,7 @@ from invoice_system.ingestion.models import IngestionResult
 
 from .models import (
     CriticResult,
+    DatabaseValidationResult,
     ReconciliationResult,
     SemanticResult,
     ValidationResult,
@@ -23,12 +24,16 @@ class ValidationState(TypedDict, total=False):
     semantic_critic_result: CriticResult | None
     reconciliation_result: ReconciliationResult | None
     reconciliation_critic_result: CriticResult | None
+    database_result: DatabaseValidationResult | None
+    database_critic_result: CriticResult | None
     critic_result: CriticResult | None
     critic_revision_count: int
     critic_revision_exhausted: bool
     semantic_critic_revision_count: int
     reconciliation_critic_revision_count: int
+    database_critic_revision_count: int
     semantic_critic_revision_exhausted: bool
     reconciliation_critic_revision_exhausted: bool
+    database_critic_revision_exhausted: bool
     revision_feedback: str | None
     final_result: ValidationResult | None

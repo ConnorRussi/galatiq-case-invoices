@@ -28,13 +28,15 @@ def run_validation(
     artifact_context: RunContext | None = None,
     persist_artifacts: bool = True,
     run_reconciliation: bool = False,
+    run_database: bool = False,
     progress_callback: ProgressCallback | None = None,
 ) -> ValidationResult:
     """Run validation from one immutable snapshot of ingestion output.
 
     The default remains the Phase 1 boundary for backward-compatible isolated
     Semantic evaluation. Production ``--validate`` passes
-    ``run_reconciliation=True`` to exercise the full short-circuiting graph.
+        ``run_reconciliation=True`` to exercise Semantic -> Reconciliation;
+        ``run_database=True`` extends that same graph through Database.
     """
 
     if ingestion.normalization is None:
@@ -65,20 +67,24 @@ def run_validation(
         "semantic_critic_result": None,
         "reconciliation_result": None,
         "reconciliation_critic_result": None,
+        "database_result": None,
+        "database_critic_result": None,
         "critic_result": None,
         "critic_revision_count": 0,
         "critic_revision_exhausted": False,
         "semantic_critic_revision_count": 0,
         "reconciliation_critic_revision_count": 0,
+        "database_critic_revision_count": 0,
         "semantic_critic_revision_exhausted": False,
         "reconciliation_critic_revision_exhausted": False,
+        "database_critic_revision_exhausted": False,
         "revision_feedback": None,
         "final_result": None,
     }
     final: ValidationResult | None = None
     if progress_callback is not None:
         progress_callback("semantic stage started")
-    for update in build_graph(include_reconciliation=run_reconciliation).stream(state, stream_mode="updates"):
+    for update in build_graph(include_reconciliation=run_reconciliation, include_database=run_database).stream(state, stream_mode="updates"):
         if "semantic" in update:
             semantic = update["semantic"]["semantic_result"]
             version = update["semantic"].get("critic_revision_count", 0) + 1
@@ -168,6 +174,56 @@ def run_validation(
                 )
                 if critic.decision.value == "REVISE":
                     progress_callback("reconciliation critic requested a revision")
+        if "database" in update:
+            database = update["database"]["database_result"]
+            version = update["database"].get("database_critic_revision_count", 0) + 1
+            if context is not None:
+                write_artifact(context.run_dir, f"database_v{version}.json", database)
+                append_event(
+                    context.run_dir,
+                    "database",
+                    "completed",
+                    proposed_status=database.status.value,
+                    issue_count=len(database.issues),
+                    version=version,
+                )
+                append_event(context.run_dir, "database_critic", "started", version=version)
+            if progress_callback is not None:
+                progress_callback(
+                    f"database specialist proposed {database.status.value} "
+                    f"with {len(database.issues)} issue(s)"
+                )
+        if "database_critic" in update:
+            critic = update["database_critic"]["database_critic_result"]
+            revision_count = update["database_critic"].get("database_critic_revision_count", 0)
+            version = revision_count + 1
+            if context is not None:
+                write_artifact(context.run_dir, f"database_critic_v{version}.json", critic)
+                append_event(
+                    context.run_dir,
+                    "database_critic",
+                    "completed",
+                    decision=critic.decision.value,
+                    reason=critic.revision_instructions or critic.summary,
+                    revision_count=revision_count,
+                    version=version,
+                )
+                if critic.decision.value == "REVISE" and revision_count <= MAX_CRITIC_REVISIONS and not update["database_critic"].get("database_critic_revision_exhausted", False):
+                    append_event(
+                        context.run_dir,
+                        "route",
+                        "revise",
+                        validation_stage="database",
+                        revision_count=revision_count,
+                    )
+                    append_event(context.run_dir, "database", "started", version=version + 1)
+            if progress_callback is not None:
+                progress_callback(
+                    f"database critic: {critic.decision.value} "
+                    f"(revision count {revision_count})"
+                )
+                if critic.decision.value == "REVISE":
+                    progress_callback("database critic requested a revision")
         for node_name in ("finalize_valid_for_phase_1", "finalize_denied", "finalize_unresolved"):
             if node_name in update:
                 final = update[node_name]["final_result"]

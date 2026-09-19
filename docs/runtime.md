@@ -45,15 +45,17 @@ python main.py --eval-validation
 python -m pytest
 ```
 
-`--validate` runs ingestion first and then the Semantic -> Reconciliation
-validation graph against the resulting `IngestionResult`. A confirmed Semantic
-DENY short-circuits Reconciliation. Validation uses the same TAMUS provider
+`--validate` runs ingestion first and then the Semantic -> Reconciliation ->
+Database validation graph against the resulting `IngestionResult`. A confirmed
+Semantic DENY short-circuits Reconciliation and Database; a confirmed
+Reconciliation DENY short-circuits Database. Validation uses the same TAMUS provider
 abstraction and its critic revision bound is configured by `validation/config.py`.
 
 `--eval-validation` runs the one growing Validation Agent evaluation. It loads
 trusted normalized goldens and controlled structured fixtures, executes the
-Semantic stage first, stops at a confirmed Semantic DENY, and routes confirmed
-Semantic PASS cases through Reconciliation. It does not rerun ingestion. The
+Semantic stage first, stops at a confirmed Semantic DENY, routes confirmed
+Semantic PASS cases through Reconciliation, and routes confirmed Reconciliation
+PASS cases through Database when expected. It does not rerun ingestion. The
 older `--eval-semantic` and `--eval-reconciliation` flags remain compatibility
 aliases for this same end-to-end evaluation; they are not separate stage
 evaluators.

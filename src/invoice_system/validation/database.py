@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Iterable, Sequence
 
 from invoice_system.agent_runtime import invoke_structured
-from invoice_system.ingestion.models import IngestionResult, NormalizedLineItem
+from invoice_system.ingestion.models import IngestionResult
 from pydantic import BaseModel, Field
 
 from .config import MAX_PRODUCT_LOOKUP_ROUNDS
@@ -102,17 +103,49 @@ def _default_retry_proposer(
     return plan.proposals
 
 
-def _items_from_ingestion(ingestion: IngestionResult) -> list[NormalizedLineItem]:
+@dataclass(frozen=True)
+class _DatabaseLookupItem:
+    requested_name: str
+    quantity: object
+    normalized_product: str | None
+    source_lines: list[int]
+
+
+def _items_from_ingestion(
+    ingestion: IngestionResult,
+    reconciliation_result: object | None = None,
+) -> list[_DatabaseLookupItem]:
     if ingestion.normalization is None:
         raise ValueError("Database validation requires an ingestion normalization")
-    return [item for item in ingestion.normalization.invoice.items if item.item_name]
+    if reconciliation_result is not None:
+        return [
+            _DatabaseLookupItem(
+                requested_name=item.product_name,
+                quantity=item.combined_quantity,
+                normalized_product=item.normalized_product,
+                source_lines=list(item.source_lines),
+            )
+            for item in reconciliation_result.consolidated_items
+        ]
+    return [
+        _DatabaseLookupItem(
+            requested_name=item.item_name or "",
+            quantity=item.quantity,
+            normalized_product=None,
+            source_lines=[index],
+        )
+        for index, item in enumerate(ingestion.normalization.invoice.items, start=1)
+        if item.item_name
+    ]
 
 
-def _initial_results(items: Sequence[NormalizedLineItem]) -> list[DatabaseResult]:
+def _initial_results(items: Sequence[_DatabaseLookupItem]) -> list[DatabaseResult]:
     return [
         DatabaseResult(
-            requested_name=item.item_name or "",
-            attempted_names=[item.item_name or ""],
+            requested_name=item.requested_name,
+            attempted_names=[item.requested_name],
+            normalized_product=item.normalized_product,
+            source_lines=item.source_lines,
             requested_quantity=item.quantity,
             product_found=False,
             inventory_sufficient=None,
@@ -176,12 +209,13 @@ def resolve_inventory(
     max_rounds: int = MAX_PRODUCT_LOOKUP_ROUNDS,
     retry_proposer: RetryProposer | None = None,
     revision_feedback: str | None = None,
+    reconciliation_result: object | None = None,
 ) -> DatabaseValidationResult:
     """Resolve invoice products using bulk rounds and preserve lookup history."""
 
     if max_rounds < 1:
         raise ValueError("max_rounds must be at least 1")
-    results = _initial_results(_items_from_ingestion(ingestion))
+    results = _initial_results(_items_from_ingestion(ingestion, reconciliation_result))
     proposer = retry_proposer or (
         lambda unresolved: _default_retry_proposer(
             unresolved,

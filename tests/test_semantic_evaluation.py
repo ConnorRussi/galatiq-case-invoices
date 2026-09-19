@@ -1,9 +1,11 @@
 import json
+import re
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
 from invoice_system.ingestion.models import IngestionResult, NormalizationResult, NormalizedInvoice
+from invoice_system.ingestion.run_logging import make_evaluation_id
 from invoice_system.validation import evaluation
 from invoice_system.validation.models import (
     CriticDecision,
@@ -251,6 +253,12 @@ def test_semantic_eval_does_not_mutate_ingestion_golden(tmp_path, monkeypatch):
     assert evaluation.run_semantic_evaluation(tmp_path)
     assert expected_source.read_text(encoding="utf-8") == golden_text
     assert (ingestion_dir / expected_source.name).read_text(encoding="utf-8") == golden_text
+
+
+def test_evaluation_id_sorts_by_timestamp_then_has_random_uid():
+    evaluation_id = make_evaluation_id()
+
+    assert re.fullmatch(r"\d{8}_\d{6}_[0-9a-f]{8}", evaluation_id)
 
 
 def test_validation_eval_routes_semantic_deny_and_pass_cases_through_one_pipeline(tmp_path, monkeypatch):

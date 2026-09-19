@@ -115,6 +115,8 @@ class DatabaseResult(BaseModel):
 
     requested_name: str = Field(min_length=1)
     attempted_names: list[str] = Field(min_length=1)
+    normalized_product: str | None = None
+    source_lines: list[int] = Field(default_factory=list)
     matched_item: str | None = None
     requested_quantity: Decimal | None = None
     available_stock: int | None = None

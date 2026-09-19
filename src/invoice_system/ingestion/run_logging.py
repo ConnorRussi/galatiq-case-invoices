@@ -28,7 +28,7 @@ def make_run_id(source_path: str | Path, prefix: str | None = None) -> str:
 
 def make_evaluation_id() -> str:
     timestamp = datetime.now().astimezone().strftime("%Y%m%d_%H%M%S")
-    return f"eval_{timestamp}_{uuid4().hex[:4]}"
+    return f"{timestamp}_{uuid4().hex[:8]}"
 
 
 def create_run_directory(root: Path) -> Path:

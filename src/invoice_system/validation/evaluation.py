@@ -31,6 +31,7 @@ from .critic import review_stage
 from .arithmetic import build_arithmetic_evidence
 from .models import (
     CriticDecision,
+    DatabaseValidationResult,
     ReconciliationResult,
     ValidationStatus,
     SemanticResult,
@@ -499,6 +500,21 @@ def _print_case_failure(case: SemanticCase) -> None:
 
 
 @dataclass
+class DatabaseMetrics:
+    status_match: bool = False
+    expected_issue_code_coverage: bool = False
+    expected_issue_field_coverage: bool = False
+    product_match: bool = False
+    record_identity_match: bool = False
+    inventory_values_match: bool = False
+    item_mapping_match: bool = False
+    unexpected_blocking_issue_count: int = 0
+    critic_completion: bool = False
+    critic_revision_count: int = 0
+    overall_database_match: bool = False
+
+
+@dataclass
 class ValidationMetrics:
     semantic_match: bool = False
     semantic_critic_completion: bool = False
@@ -507,6 +523,10 @@ class ValidationMetrics:
     reconciliation_match: bool = True
     reconciliation_critic_completion: bool = True
     reconciliation_revision_count: int = 0
+    database_evaluated: bool = False
+    database_match: bool = True
+    database_critic_completion: bool = True
+    database_revision_count: int = 0
     route_match: bool = False
     final_status_match: bool = False
     final_stop_match: bool = False
@@ -522,6 +542,7 @@ class ValidationCase:
     result: ValidationResult | None
     semantic_metrics: SemanticMetrics
     reconciliation_metrics: ReconciliationMetrics | None
+    database_metrics: DatabaseMetrics | None
     metrics: ValidationMetrics
     artifact_dir: Path
     expected_stop: str
@@ -539,8 +560,8 @@ def run_validation_evaluation(root: Path) -> bool:
 
     Inputs are trusted normalized goldens or controlled structured fixtures. A
     single full validation graph run handles Semantic first, then routes
-    eligible PASS cases through Reconciliation. Later Database and Gate stages
-    can extend this case contract without adding another evaluator.
+    eligible PASS cases through Reconciliation and Database. The expected
+    truth set grows in this same evaluator; Database is not a second suite.
     """
 
     expected_files = _validation_expected_files(root)
@@ -554,7 +575,7 @@ def run_validation_evaluation(root: Path) -> bool:
     started_at = now_iso()
     print(
         f"Validation Agent evaluation: {len(expected_files)} case(s) "
-        "(trusted input; Semantic -> Reconciliation)",
+        "(trusted input; Semantic -> Reconciliation -> Database)",
         flush=True,
     )
 
@@ -615,6 +636,7 @@ def _evaluate_validation_case_safely(
         write_artifact(artifact_dir, "expected.json", expected)
         write_artifact(artifact_dir, "expected_semantic.json", expected.get("semantic", {}))
         write_artifact(artifact_dir, "expected_reconciliation.json", expected.get("reconciliation"))
+        write_artifact(artifact_dir, "expected_database.json", expected.get("database"))
         write_artifact(artifact_dir, "input_reference.json", input_reference)
         write_artifact(artifact_dir, "validation_input.json", ingestion)
         write_artifact(
@@ -635,6 +657,7 @@ def _evaluate_validation_case_safely(
             ingestion,
             artifact_context=context,
             run_reconciliation=True,
+            run_database=True,
             progress_callback=progress_callback,
         )
         semantic_revisions = _revision_count(artifact_dir, "semantic_v")
@@ -646,6 +669,7 @@ def _evaluate_validation_case_safely(
         semantic_critic_completion = _stage_critic_completed(result, ValidationStage.SEMANTIC)
         semantic_expected_status = _expected_semantic_status(expected)
         reconciliation_expected = expected.get("reconciliation")
+        database_expected = expected.get("database")
         if semantic_expected_status == "PASS" and reconciliation_expected is None:
             raise ValueError("Semantic PASS case is missing its Reconciliation expectation")
 
@@ -668,12 +692,27 @@ def _evaluate_validation_case_safely(
                     critic_completion=reconciliation_critic_completion,
                 )
 
+        database_metrics: DatabaseMetrics | None = None
+        if database_expected is not None:
+            if reconciliation_expected is None or _expected_reconciliation_status(expected) != "PASS":
+                raise ValueError("Database expectation requires a Reconciliation PASS expectation")
+            if result.database_result is None:
+                database_metrics = DatabaseMetrics()
+            else:
+                database_metrics = score_database_result(
+                    database_expected,
+                    result.database_result,
+                    critic_completion=_stage_critic_completed(result, ValidationStage.DATABASE),
+                    critic_revision_count=_revision_count(artifact_dir, "database_v"),
+                )
+
         expected_stop = _expected_validation_stop(expected)
         actual_stop = _actual_validation_stop(result)
         route_match = _validation_route_matches(
             result,
             semantic_expected_status,
             reconciliation_expected,
+            database_expected,
         )
         final_status_match = _expected_final_status(expected) == result.status.value
         final_stop_match = expected_stop == actual_stop
@@ -683,6 +722,8 @@ def _evaluate_validation_case_safely(
             reconciliation_metrics,
             reconciliation_critic_completion,
             semantic_expected_status,
+            database_metrics,
+            database_expected is not None,
         )
         metrics = ValidationMetrics(
             semantic_match=semantic_metrics.overall_semantic_match,
@@ -696,6 +737,20 @@ def _evaluate_validation_case_safely(
             ),
             reconciliation_critic_completion=reconciliation_critic_completion,
             reconciliation_revision_count=reconciliation_revisions,
+            database_evaluated=database_expected is not None,
+            database_match=(
+                database_metrics.overall_database_match
+                if database_metrics is not None
+                else database_expected is None
+            ),
+            database_critic_completion=(
+                database_metrics.critic_completion
+                if database_metrics is not None
+                else database_expected is None
+            ),
+            database_revision_count=(
+                database_metrics.critic_revision_count if database_metrics is not None else 0
+            ),
             route_match=route_match,
             final_status_match=final_status_match,
             final_stop_match=final_stop_match,
@@ -715,6 +770,14 @@ def _evaluate_validation_case_safely(
                         and reconciliation_critic_completion
                     )
                 )
+                and (
+                    database_expected is None
+                    or (
+                        database_metrics is not None
+                        and database_metrics.overall_database_match
+                        and database_metrics.critic_completion
+                    )
+                )
             ),
         )
         case = ValidationCase(
@@ -724,6 +787,7 @@ def _evaluate_validation_case_safely(
             result=result,
             semantic_metrics=semantic_metrics,
             reconciliation_metrics=reconciliation_metrics,
+            database_metrics=database_metrics,
             metrics=metrics,
             artifact_dir=artifact_dir,
             expected_stop=expected_stop,
@@ -733,6 +797,7 @@ def _evaluate_validation_case_safely(
                 result,
                 metrics,
                 reconciliation_metrics,
+                database_metrics,
             ),
         )
         write_artifact(artifact_dir, "evaluation.json", _validation_case_payload(case))
@@ -745,6 +810,7 @@ def _evaluate_validation_case_safely(
             result=None,
             semantic_metrics=SemanticMetrics(),
             reconciliation_metrics=None,
+            database_metrics=None,
             metrics=ValidationMetrics(),
             artifact_dir=artifact_dir,
             expected_stop=_expected_validation_stop(expected),
@@ -757,11 +823,11 @@ def _evaluate_validation_case_safely(
 
 
 def _stage_critic_completed(result: ValidationResult, stage: ValidationStage) -> bool:
-    critic = (
-        result.semantic_critic_result
-        if stage == ValidationStage.SEMANTIC
-        else result.reconciliation_critic_result
-    )
+    critic = {
+        ValidationStage.SEMANTIC: result.semantic_critic_result,
+        ValidationStage.RECONCILIATION: result.reconciliation_critic_result,
+        ValidationStage.DATABASE: result.database_critic_result,
+    }[stage]
     return critic is not None and critic.decision == CriticDecision.AGREE
 
 
@@ -786,6 +852,9 @@ def _expected_validation_stop(expected: dict[str, Any]) -> str:
     reconciliation_status = _expected_reconciliation_status(expected)
     if reconciliation_status == "DENY":
         return "reconciliation"
+    database = expected.get("database")
+    if database is not None and _status_value(database.get("expected_status", "PASS")) == "DENY":
+        return "database"
     return "validation"
 
 
@@ -798,6 +867,9 @@ def _expected_final_status(expected: dict[str, Any]) -> str:
         return ValidationStatus.DENIED.value
     if _expected_reconciliation_status(expected) == "DENY":
         return ValidationStatus.DENIED.value
+    database = expected.get("database")
+    if database is not None and _status_value(database.get("expected_status", "PASS")) == "DENY":
+        return ValidationStatus.DENIED.value
     return ValidationStatus.VALID.value
 
 
@@ -805,9 +877,23 @@ def _validation_route_matches(
     result: ValidationResult,
     expected_semantic_status: str,
     reconciliation_expected: dict[str, Any] | None,
+    database_expected: dict[str, Any] | None,
 ) -> bool:
     if expected_semantic_status == "DENY":
-        return result.denied_by == ValidationStage.SEMANTIC and result.reconciliation_result is None
+        return (
+            result.denied_by == ValidationStage.SEMANTIC
+            and result.reconciliation_result is None
+            and result.database_result is None
+        )
+    reconciliation_status = _status_value(reconciliation_expected.get("expected_status", "PASS")) if reconciliation_expected else None
+    if reconciliation_status == "DENY":
+        return result.denied_by == ValidationStage.RECONCILIATION and result.database_result is None
+    if database_expected is not None:
+        return (
+            result.semantic_result.status.value == "PASS"
+            and result.reconciliation_result is not None
+            and result.database_result is not None
+        )
     return (
         result.semantic_result.status.value == "PASS"
         and reconciliation_expected is not None
@@ -821,15 +907,161 @@ def _final_state_matches(
     reconciliation_metrics: ReconciliationMetrics | None,
     reconciliation_critic_completion: bool,
     expected_semantic_status: str,
+    database_metrics: DatabaseMetrics | None,
+    database_expected: bool,
 ) -> bool:
     if not semantic_metrics.overall_semantic_match or not semantic_critic_completion:
         return False
     if expected_semantic_status == "DENY":
         return True
-    return (
+    reconciliation_match = (
         reconciliation_metrics is not None
         and reconciliation_metrics.overall_reconciliation_match
         and reconciliation_critic_completion
+    )
+    if not reconciliation_match:
+        return False
+    return (
+        not database_expected
+        or (
+            database_metrics is not None
+            and database_metrics.overall_database_match
+            and database_metrics.critic_completion
+        )
+    )
+
+
+def score_database_result(
+    expected: dict[str, Any],
+    result: DatabaseValidationResult,
+    *,
+    critic_completion: bool = False,
+    critic_revision_count: int = 0,
+) -> DatabaseMetrics:
+    """Compare stable database facts, including consolidated-item mapping."""
+
+    expectation = expected.get("database", expected)
+    expected_status = _status_value(expectation.get("expected_status", "PASS"))
+    expected_issues = _database_expected_issues(expectation)
+    actual_issues = result.issues
+    code_coverage = all(
+        any(_database_issue_matches(issue, item) for issue in actual_issues)
+        for item in expected_issues
+        if item.get("code")
+    )
+    field_coverage = all(
+        any(_database_issue_matches(issue, item) for issue in actual_issues)
+        for item in expected_issues
+        if item.get("field") is not None
+    )
+    unexpected = sum(
+        issue.severity.value == "error"
+        and not any(_database_issue_matches(issue, item) for item in expected_issues)
+        and expected_status == "PASS"
+        for issue in actual_issues
+    )
+
+    expected_items = _database_expected_items(expectation)
+    actual_items = result.results
+    product_match = len(expected_items) == len(actual_items)
+    record_identity_match = product_match
+    inventory_values_match = product_match
+    item_mapping_match = product_match
+    if product_match:
+        for expected_item in expected_items:
+            actual = _find_database_item(actual_items, expected_item)
+            if actual is None:
+                product_match = record_identity_match = inventory_values_match = item_mapping_match = False
+                continue
+            expected_found = _expected_value(expected_item, "product_found")
+            expected_name = _expected_value(expected_item, "normalized_product")
+            expected_matched = _expected_value(expected_item, "matched_item", "db_product", "db_record")
+            expected_stock = _expected_value(expected_item, "available_stock", "inventory_quantity")
+            expected_quantity = _expected_value(expected_item, "requested_quantity", "quantity")
+            expected_lines = _expected_value(expected_item, "source_lines", "mapping")
+            if expected_name is not None:
+                product_match &= _normalise_product(actual.normalized_product) == _normalise_product(str(expected_name))
+            if expected_found is not None:
+                product_match &= actual.product_found == bool(expected_found)
+            if expected_matched is not None:
+                record_identity_match &= actual.matched_item == str(expected_matched)
+            if expected_stock is not None:
+                inventory_values_match &= actual.available_stock == int(expected_stock)
+            if expected_quantity is not None:
+                inventory_values_match &= str(actual.requested_quantity) == str(expected_quantity)
+            if expected_lines is not None:
+                item_mapping_match &= actual.source_lines == list(expected_lines)
+
+    status_match = result.status.value == expected_status
+    overall = (
+        status_match and code_coverage and field_coverage and unexpected == 0
+        and product_match and record_identity_match and inventory_values_match
+        and item_mapping_match
+    )
+    return DatabaseMetrics(
+        status_match=status_match,
+        expected_issue_code_coverage=code_coverage,
+        expected_issue_field_coverage=field_coverage,
+        product_match=product_match,
+        record_identity_match=record_identity_match,
+        inventory_values_match=inventory_values_match,
+        item_mapping_match=item_mapping_match,
+        unexpected_blocking_issue_count=unexpected,
+        critic_completion=critic_completion,
+        critic_revision_count=critic_revision_count,
+        overall_database_match=overall,
+    )
+
+
+def _database_expected_issues(expectation: dict[str, Any]) -> list[dict[str, Any]]:
+    if "expected_issues" in expectation:
+        return list(expectation["expected_issues"])
+    return ([{"code": code} for code in expectation.get("expected_issue_codes", [])]
+            + [{"code": "__field_only__", "field": field} for field in expectation.get("expected_issue_fields", [])])
+
+
+def _database_expected_items(expectation: dict[str, Any]) -> list[dict[str, Any]]:
+    return list(
+        expectation.get("expected_products")
+        or expectation.get("expected_results")
+        or expectation.get("expected_db_records")
+        or expectation.get("expected_item_mappings")
+        or []
+    )
+
+
+def _expected_value(item: dict[str, Any], *names: str) -> Any:
+    for name in names:
+        for key in (f"expected_{name}", name):
+            if key in item:
+                return item[key]
+    return None
+
+
+def _find_database_item(items: list[Any], expected: dict[str, Any]) -> Any | None:
+    requested = _expected_value(expected, "requested_name", "product_name")
+    normalized = _expected_value(expected, "normalized_product")
+    for item in items:
+        if requested is not None and item.requested_name == str(requested):
+            return item
+        if normalized is not None and _normalise_product(item.normalized_product) == _normalise_product(str(normalized)):
+            return item
+    return None
+
+
+def _normalise_product(value: str | None) -> str | None:
+    return None if value is None else "".join(str(value).split()).casefold()
+
+
+def _database_issue_matches(actual: Any, expected: dict[str, Any]) -> bool:
+    if expected.get("code") == "__field_only__":
+        return _normalise_field(actual.field) == _normalise_field(expected.get("field"))
+    return (
+        _normalise_code(actual.code) == _normalise_code(str(expected.get("code", "")))
+        and (
+            expected.get("field") is None
+            or _normalise_field(actual.field) == _normalise_field(expected.get("field"))
+        )
     )
 
 
@@ -838,6 +1070,7 @@ def _validation_case_differences(
     result: ValidationResult,
     metrics: ValidationMetrics,
     reconciliation_metrics: ReconciliationMetrics | None,
+    database_metrics: DatabaseMetrics | None,
 ) -> list[str]:
     differences: list[str] = []
     expected_semantic = expected.get("semantic", {})
@@ -885,6 +1118,27 @@ def _validation_case_differences(
                 )
             if not reconciliation_metrics.critic_completion:
                 differences.append("Reconciliation critic did not AGREE")
+    if database_metrics is not None:
+        expected_database = expected.get("database", {})
+        actual_database = result.database_result
+        if actual_database is None:
+            differences.append("Database: expected a result, but the stage did not run")
+        else:
+            if not database_metrics.status_match:
+                differences.append(
+                    f"Database: expected {expected_database.get('expected_status')}, "
+                    f"actual {actual_database.status.value}"
+                )
+            if not database_metrics.product_match:
+                differences.append("Database product match mismatch")
+            if not database_metrics.record_identity_match:
+                differences.append("Database record identity mismatch")
+            if not database_metrics.inventory_values_match:
+                differences.append("Database inventory value mismatch")
+            if not database_metrics.item_mapping_match:
+                differences.append("Database consolidated-item mapping mismatch")
+            if not database_metrics.critic_completion:
+                differences.append("Database critic did not AGREE")
     if not metrics.final_status_match:
         differences.append(
             f"final status: expected {_expected_final_status(expected)}, "
@@ -963,6 +1217,11 @@ def _validation_case_payload(case: ValidationCase) -> dict[str, Any]:
             if case.reconciliation_metrics is not None
             else None
         ),
+        "database_metrics": (
+            asdict(case.database_metrics)
+            if case.database_metrics is not None
+            else None
+        ),
         "metrics": asdict(case.metrics),
         "differences": case.differences,
         "passed": case.passed,
@@ -991,6 +1250,17 @@ def _write_validation_summary(
         if case.result is not None
         and case.result.denied_by == ValidationStage.RECONCILIATION
     ]
+    database_denied = [
+        case.case_id
+        for case in cases
+        if case.result is not None
+        and case.result.denied_by == ValidationStage.DATABASE
+    ]
+    passed_database = [
+        case.case_id
+        for case in cases
+        if case.result is not None and case.result.database_result is not None
+    ]
     summary = {
         "evaluation_id": evaluation_id,
         "started_at": started_at,
@@ -1000,6 +1270,8 @@ def _write_validation_summary(
         "failed": sum(not case.passed for case in cases),
         "semantic_denied": semantic_denied,
         "reconciliation_denied": reconciliation_denied,
+        "database_denied": database_denied,
+        "passed_through_database": passed_database,
         "passed_current_validation_pipeline": [case.case_id for case in cases if case.passed],
         "evaluation_failures": [case.case_id for case in cases if not case.passed],
         "metrics": {
@@ -1009,6 +1281,9 @@ def _write_validation_summary(
             "reconciliation_critic_completion": f"{sum(case.metrics.reconciliation_critic_completion for case in cases if case.metrics.reconciliation_evaluated)}/{sum(case.metrics.reconciliation_evaluated for case in cases)}",
             "semantic_revisions": sum(case.metrics.semantic_revision_count for case in cases),
             "reconciliation_revisions": sum(case.metrics.reconciliation_revision_count for case in cases),
+            "database_status_match": f"{sum(case.database_metrics is not None and case.database_metrics.status_match for case in cases)}/{sum(case.metrics.database_evaluated for case in cases)}",
+            "database_critic_completion": f"{sum(case.metrics.database_critic_completion for case in cases if case.metrics.database_evaluated)}/{sum(case.metrics.database_evaluated for case in cases)}",
+            "database_revisions": sum(case.metrics.database_revision_count for case in cases),
             "route_match": f"{sum(case.metrics.route_match for case in cases)}/{len(cases)}",
             "final_state_match": f"{sum(case.metrics.final_state_match for case in cases)}/{len(cases)}",
             "overall_validation_match": f"{sum(case.passed for case in cases)}/{len(cases)}",
@@ -1020,7 +1295,9 @@ def _write_validation_summary(
 
 def _print_validation_case(case: ValidationCase) -> None:
     print()
+    print("=" * 50)
     print(case.case_id)
+    print("=" * 50)
     if case.error:
         print(f"ERROR: {case.error}")
         print("EVAL: FAIL")
@@ -1063,8 +1340,23 @@ def _print_validation_case(case: ValidationCase) -> None:
                 f"revisions: {case.metrics.reconciliation_revision_count}"
             )
         print(reconciliation.status.value)
+        if reconciliation.status.value == "DENY":
+            print(f"Expected stop: {case.expected_stop.title()}")
     else:
         print(f"Expected stop: {case.expected_stop.title()}")
+
+    if result.database_result is not None:
+        print()
+        print("[database]")
+        _print_database_result(result.database_result)
+        database_critic = result.database_critic_result
+        if database_critic is not None:
+            print(
+                f"critic: {database_critic.decision.value}; "
+                f"revisions: {case.metrics.database_revision_count}"
+            )
+        if result.database_result.status.value == "DENY":
+            print(f"Expected stop: {case.expected_stop.title()}")
 
     print()
     print(f"Expected final state: {'MATCH' if case.metrics.final_state_match else 'MISMATCH'}")
@@ -1115,6 +1407,24 @@ def _print_reconciliation_calculations(result: ValidationResult) -> None:
         )
 
 
+def _print_database_result(database: Any) -> None:
+    for item in database.results:
+        print(f"{item.requested_name}")
+        print(f"  normalized lookup: {item.attempted_names[-1]}")
+        print(f"  requested quantity: {_format_optional_decimal(item.requested_quantity)}")
+        print("  DB match:")
+        print(f"    product found: {'yes' if item.product_found else 'no'}")
+        print(f"    DB product: {item.matched_item or 'not found'}")
+        print(f"    inventory quantity: {item.available_stock if item.available_stock is not None else 'not found'}")
+        if item.source_lines:
+            print(f"    source lines: {item.source_lines}")
+    if database.issues:
+        print("Issue:")
+        for issue in database.issues:
+            print(issue.code)
+    print(f"Result: {database.status.value}")
+
+
 def _format_optional_decimal(value: Any) -> str:
     return "missing" if value is None else _format_decimal(value)
 
@@ -1137,11 +1447,22 @@ def _print_validation_summary(cases: list[ValidationCase]) -> None:
         for case in cases
         if case.result is not None and case.result.denied_by == ValidationStage.RECONCILIATION
     ]
+    database_denied = [
+        case.case_id
+        for case in cases
+        if case.result is not None and case.result.denied_by == ValidationStage.DATABASE
+    ]
+    passed_database = [
+        case.case_id
+        for case in cases
+        if case.result is not None and case.result.database_result is not None
+    ]
     passed = [case.case_id for case in cases if case.passed]
     failures = [case.case_id for case in cases if not case.passed]
     print()
     print("Summary")
     print(f"Semantic denied: {names(semantic_denied)}")
     print(f"Reconciliation denied: {names(reconciliation_denied)}")
-    print(f"Passed current Validation pipeline: {names(passed)}")
+    print(f"Database denied: {names(database_denied)}")
+    print(f"Passed through Database Validation: {names(passed_database)}")
     print(f"Evaluation failures: {names(failures)}")

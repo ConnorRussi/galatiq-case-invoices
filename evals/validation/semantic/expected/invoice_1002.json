@@ -2,5 +2,6 @@
   "invoice_id": "invoice_1002",
   "input": {"kind": "ingestion_golden", "path": "invoice_1002.json"},
   "semantic": {"expected_status": "PASS", "expected_issues": [], "expected_denial_stage": null},
-  "reconciliation": {"expected_status": "PASS", "expected_issue_codes": [], "expected_consolidated_items": [{"product_name": "GadgetX", "expected_quantity": "20", "expected_source_lines": [1], "expected_derived_line_total": "15000"}]}
+  "reconciliation": {"expected_status": "PASS", "expected_issue_codes": [], "expected_consolidated_items": [{"product_name": "GadgetX", "expected_quantity": "20", "expected_source_lines": [1], "expected_derived_line_total": "15000"}]},
+  "database": {"expected_status": "DENY", "expected_issue_codes": ["INSUFFICIENT_INVENTORY"], "expected_issue_fields": ["requested_quantity"], "expected_products": [{"requested_name": "GadgetX", "expected_normalized_product": "gadgetx", "expected_product_found": true, "expected_matched_item": "GadgetX", "expected_requested_quantity": "20", "expected_available_stock": 5, "expected_source_lines": [1]}]}
 }

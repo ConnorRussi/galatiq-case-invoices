@@ -55,9 +55,11 @@ that failure. Controlled Phase 2 inputs live under
 [`evals/validation/reconciliation/`](../evals/validation/reconciliation/).
 
 Every case runs Semantic first. A confirmed Semantic DENY is expected to stop
-there; Reconciliation must not run. A confirmed Semantic PASS must have a
-Reconciliation expectation and continue through the real Reconciliation stage.
-The same case truth set will later gain Database and Validation Gate blocks;
+there; Reconciliation and Database must not run. A confirmed Semantic PASS must
+have a Reconciliation expectation and continue through the real Reconciliation
+stage. A confirmed Reconciliation DENY stops before Database. A confirmed
+Reconciliation PASS runs Database for cases with a Database expectation. The
+same case truth set will later gain the Validation Gate block;
 Business Rules and Final Agent behavior are outside this evaluator.
 
 Each case reports status match, expected issue-code coverage, expected
@@ -73,10 +75,13 @@ field failure. Reconciliation-only observations such as missing
 `invoice_total`/`amount_due` or payment-term date arithmetic are intentionally
 not Semantic expectations.
 
-Each run writes JSON artifacts under `logs/evals/<evaluation_id>/`. Normal
+Each run writes JSON artifacts under `logs/evals/<evaluation_id>/`. Evaluation
+directory names use `YYYYMMDD_HHMMSS_<8-character-uid>`, so alphabetical
+directory order is chronological. Normal
 validation artifacts remain the same (`validation_input.json`, versioned
 `semantic_vN.json`, `semantic_critic_vN.json`, `reconciliation_vN.json`,
-`reconciliation_critic_vN.json`, and `validation_result.json`), with
+`reconciliation_critic_vN.json`, `database_vN.json`,
+`database_critic_vN.json`, and `validation_result.json`), with
 `expected.json`, `evaluation.json`, and a suite `summary.json` added by the
 evaluator. Terminal output reports actual stage work, expected stop, final
 state comparison, and `EVAL: PASS` or `EVAL: FAIL` per case.
@@ -99,3 +104,9 @@ Artifacts preserve the input reference, expected Semantic/Reconciliation
 blocks, actual full validation result, consolidated items, calculations, critic
 records, revision counts, routing, and metric comparison. They contain no
 hidden chain-of-thought.
+
+Database expectations are part of this same evaluator. They compare structured
+status, issue codes, product-found and matched-record identity, requested and
+available quantities, and consolidated-item source-line mappings. Natural
+language explanations are not compared, and there is no standalone Phase 3
+evaluation framework.

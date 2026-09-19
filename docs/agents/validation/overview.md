@@ -1,6 +1,6 @@
 # Validation agent
 
-Status: Phase 1 and Phase 2 implemented. The validation graph consumes an
+Status: Phase 1, Phase 2, and Phase 3 implemented. The validation graph consumes an
 `IngestionResult` and returns a typed `ValidationResult` without mutating the
 ingestion invoice.
 
@@ -41,10 +41,13 @@ observable Decimal evidence; it does not replace the LLM specialist.
 
 ## Database boundary
 
-`database.py` and `database_tool.py` provide an isolated inventory validation
+`database.py` and `database_tool.py` provide the Phase 3 inventory validation
 boundary. The SQL tool performs exact bulk lookups after outer-whitespace
 trimming only. The specialist may deliberately request meaning-preserving
 variations for unresolved products, using at most three lookup rounds, and
 `DatabaseResult.attempted_names` preserves the complete lookup history.
-`database_runner.py` applies the shared critic to the database result. This
-boundary is callable from Python and is not yet part of the default CLI graph.
+Database receives Reconciliation's consolidated items, so quantity and source
+line mapping are checked once per consolidated product. `database_runner.py`
+remains the reusable critiqued execution boundary; the main graph uses the same
+specialist and shared critic in the growing Semantic -> Reconciliation ->
+Database flow. Semantic or Reconciliation DENY short-circuits Database.

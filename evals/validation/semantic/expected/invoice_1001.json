@@ -2,5 +2,6 @@
   "invoice_id": "invoice_1001",
   "input": {"kind": "ingestion_golden", "path": "invoice_1001.json"},
   "semantic": {"expected_status": "PASS", "expected_issues": [], "expected_denial_stage": null},
-  "reconciliation": {"expected_status": "PASS", "expected_issue_codes": [], "expected_consolidated_items": [{"product_name": "WidgetA", "expected_quantity": "10", "expected_source_lines": [1], "expected_derived_line_total": "2500.00"}, {"product_name": "WidgetB", "expected_quantity": "5", "expected_source_lines": [2], "expected_derived_line_total": "2500.00"}]}
+  "reconciliation": {"expected_status": "PASS", "expected_issue_codes": [], "expected_consolidated_items": [{"product_name": "WidgetA", "expected_quantity": "10", "expected_source_lines": [1], "expected_derived_line_total": "2500.00"}, {"product_name": "WidgetB", "expected_quantity": "5", "expected_source_lines": [2], "expected_derived_line_total": "2500.00"}]},
+  "database": {"expected_status": "PASS", "expected_issue_codes": [], "expected_products": [{"requested_name": "WidgetA", "expected_normalized_product": "widgeta", "expected_product_found": true, "expected_matched_item": "WidgetA", "expected_requested_quantity": "10", "expected_available_stock": 15, "expected_source_lines": [1]}, {"requested_name": "WidgetB", "expected_normalized_product": "widgetb", "expected_product_found": true, "expected_matched_item": "WidgetB", "expected_requested_quantity": "5", "expected_available_stock": 10, "expected_source_lines": [2]}]}
 }
