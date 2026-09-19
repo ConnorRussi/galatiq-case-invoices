@@ -124,24 +124,27 @@ def score_semantic_result(
     semantic_expectation = expected.get("semantic", expected)
     expected_status = _status_value(semantic_expectation.get("expected_status", "PASS"))
     expected_issues = _expected_issues(semantic_expectation)
-    actual_codes = [_normalise_code(issue.code) for issue in semantic.issues]
-    actual_fields = [_normalise_field(issue.field) for issue in semantic.issues if issue.field]
-
-    expected_codes = [_normalise_code(issue.code) for issue in expected_issues]
-    expected_fields = [_normalise_field(issue.field) for issue in expected_issues if issue.field]
-    code_coverage = _contains_all(expected_codes, actual_codes)
-    field_coverage = _contains_all(expected_fields, actual_fields)
-
-    expected_pairs = {
-        (_normalise_code(issue.code), _normalise_field(issue.field))
-        for issue in expected_issues
-    }
+    code_coverage = all(
+        any(_issue_matches_expected(issue, expected_issue) for issue in semantic.issues)
+        for expected_issue in expected_issues
+        if expected_issue.code != "__field_only__"
+    )
+    field_coverage = all(
+        any(_issue_matches_expected(issue, expected_issue) for issue in semantic.issues)
+        for expected_issue in expected_issues
+        if expected_issue.field is not None
+    )
     unexpected_blocking = 0
     for issue in semantic.issues:
         if issue.severity.value != "error":
             continue
-        pair = (_normalise_code(issue.code), _normalise_field(issue.field))
-        if pair not in expected_pairs:
+        expected_match = any(
+            _issue_matches_expected(issue, expected_issue)
+            for expected_issue in expected_issues
+        )
+        if not expected_match and (
+            expected_status == "PASS" or not _is_supported_semantic_issue(issue, result)
+        ):
             unexpected_blocking += 1
 
     expected_denial_stage = semantic_expectation.get("expected_denial_stage")
@@ -290,6 +293,61 @@ def _normalise_field(value: str | None) -> str | None:
         return None
     field = value.strip().removeprefix("invoice.")
     return field.replace("line_items[", "items[")
+
+
+_SEMANTIC_CODE_FAMILIES = {
+    "contradictory_dates": "date_order",
+    "invoice_date_after_due_date": "date_order",
+    "negative_quantity": "negative_quantity",
+    "negative_unit_price": "negative_unit_price",
+    "negative_invoice_total": "negative_invoice_total",
+    "relative_date": "relative_date",
+}
+
+
+def _issue_matches_expected(actual: Any, expected: ExpectedIssue) -> bool:
+    if expected.code == "__field_only__":
+        return _normalise_field(actual.field) == _normalise_field(expected.field)
+    actual_family = _SEMANTIC_CODE_FAMILIES.get(_normalise_code(actual.code), _normalise_code(actual.code))
+    expected_family = _SEMANTIC_CODE_FAMILIES.get(_normalise_code(expected.code), _normalise_code(expected.code))
+    if actual_family != expected_family:
+        return False
+    if expected.field is None:
+        return True
+    actual_field = _normalise_field(actual.field)
+    expected_field = _normalise_field(expected.field)
+    if actual_field == expected_field:
+        return True
+    return (
+        actual_family == "date_order"
+        and actual_field in {"invoice_date", "due_date"}
+        and expected_field in {"invoice_date", "due_date"}
+    )
+
+
+def _is_supported_semantic_issue(issue: Any, result: ValidationResult) -> bool:
+    """Recognize additional real semantic roots without accepting invented ones."""
+
+    invoice = result.ingestion.normalization.invoice
+    family = _SEMANTIC_CODE_FAMILIES.get(_normalise_code(issue.code))
+    field = _normalise_field(issue.field)
+    if family == "date_order":
+        return invoice.invoice_date is not None and invoice.due_date is not None and invoice.invoice_date > invoice.due_date
+    if family == "negative_invoice_total":
+        return invoice.invoice_total is not None and invoice.invoice_total < 0
+    if family in {"negative_quantity", "negative_unit_price"} and field:
+        prefix, _, attribute = field.partition("].")
+        if prefix.startswith("items[") and attribute in {"quantity", "unit_price"}:
+            try:
+                index = int(prefix.removeprefix("items["))
+            except ValueError:
+                return False
+            if 0 <= index < len(invoice.items):
+                value = getattr(invoice.items[index], attribute)
+                return value is not None and value < 0
+    if family == "relative_date":
+        return bool(invoice.additional_fields.get("due_date_raw"))
+    return False
 
 
 def _contains_all(expected: list[str | None], actual: list[str | None]) -> bool:
@@ -1050,7 +1108,8 @@ def _print_reconciliation_calculations(result: ValidationResult) -> None:
         )
     for calculation in reconciliation.calculations:
         print(
-            f"{calculation.code} {calculation.field or 'invoice'}: "
+            f"{calculation.check_type.value} {calculation.outcome.value} "
+            f"{calculation.field or 'invoice'}: "
             f"calculated={_format_optional_decimal(calculation.calculated)}, "
             f"declared={_format_optional_decimal(calculation.declared)}"
         )

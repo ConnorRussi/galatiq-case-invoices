@@ -56,20 +56,39 @@ class ReconciliationStatus(str, Enum):
 
 
 class ConsolidatedItem(BaseModel):
-    """A deterministic, auditable product consolidation proposed by Phase 2."""
+    """A deterministic, auditable product consolidation for Phase 2."""
 
     product_name: str = Field(min_length=1)
     normalized_product: str = Field(min_length=1)
     combined_quantity: Decimal
     source_lines: list[int] = Field(min_length=1)
+    # A group-level price is meaningful only when every source line has the
+    # same price. Keep all observed prices so consolidation never discards the
+    # line-level arithmetic needed to reconcile an invoice.
+    unit_prices: list[Decimal] = Field(default_factory=list)
     unit_price: Decimal | None = None
     derived_line_total: Decimal | None = None
 
 
-class ReconciliationCalculation(BaseModel):
-    """One observable arithmetic check; explanations remain intentionally absent."""
+class ReconciliationCheckType(str, Enum):
+    LINE_TOTAL = "LINE_TOTAL"
+    SUBTOTAL = "SUBTOTAL"
+    TAX = "TAX"
+    TOTAL = "TOTAL"
 
-    code: str = Field(min_length=1)
+
+class ReconciliationCheckOutcome(str, Enum):
+    MATCH = "MATCH"
+    MISMATCH = "MISMATCH"
+    CALCULATED = "CALCULATED"
+    NOT_APPLICABLE = "NOT_APPLICABLE"
+
+
+class ReconciliationCalculation(BaseModel):
+    """One deterministic arithmetic check exposed by Reconciliation."""
+
+    check_type: ReconciliationCheckType
+    outcome: ReconciliationCheckOutcome
     field: str | None = None
     calculated: Decimal | None = None
     declared: Decimal | None = None

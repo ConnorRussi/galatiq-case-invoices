@@ -3,10 +3,12 @@ from decimal import Decimal
 from invoice_system.ingestion.models import NormalizedInvoice
 from invoice_system.validation.arithmetic import (
     build_arithmetic_evidence,
+    build_reconciliation_checks,
     decimal_multiply,
     decimal_subtract,
     decimal_sum,
 )
+from invoice_system.validation.models import ReconciliationCheckOutcome, ReconciliationCheckType
 
 
 def test_decimal_sum_and_subtraction_are_exact():
@@ -32,3 +34,40 @@ def test_arithmetic_evidence_consolidates_repeated_products():
     assert evidence["consolidated_items"][0]["combined_quantity"] == Decimal("8")
     assert evidence["consolidated_items"][0]["source_lines"] == [1, 2]
     assert evidence["consolidated_items"][1]["derived_line_total"] == Decimal("20.50")
+
+
+def test_consolidation_preserves_multiple_prices_without_a_conflict_signal():
+    invoice = NormalizedInvoice.model_validate({
+        "items": [
+            {"item_name": "Gadget A", "quantity": "5", "unit_price": "10", "line_amount": "50"},
+            {"item_name": "Gadget A", "quantity": "3", "unit_price": "20", "line_amount": "60"},
+        ],
+        "subtotal": "110",
+        "tax_amount": "0",
+        "invoice_total": "110",
+    })
+
+    consolidated = build_arithmetic_evidence(invoice)["consolidated_items"][0]
+
+    assert consolidated["unit_prices"] == [Decimal("10"), Decimal("20")]
+    assert consolidated["unit_price"] is None
+    assert "conflicting_prices" not in consolidated
+    assert consolidated["derived_line_total"] == Decimal("110")
+
+
+def test_reconciliation_checks_use_decimal_outcomes_not_model_labels():
+    invoice = NormalizedInvoice.model_validate({
+        "items": [{"item_name": "Gadget A", "quantity": "3", "unit_price": "10", "line_amount": "30.00"}],
+        "subtotal": "30",
+        "tax_amount": "0",
+        "invoice_total": "31",
+    })
+
+    checks = build_reconciliation_checks(invoice)
+
+    assert checks[0].check_type == ReconciliationCheckType.LINE_TOTAL
+    assert checks[0].outcome == ReconciliationCheckOutcome.MATCH
+    assert checks[1].check_type == ReconciliationCheckType.SUBTOTAL
+    assert checks[1].outcome == ReconciliationCheckOutcome.MATCH
+    assert checks[2].check_type == ReconciliationCheckType.TOTAL
+    assert checks[2].outcome == ReconciliationCheckOutcome.MISMATCH

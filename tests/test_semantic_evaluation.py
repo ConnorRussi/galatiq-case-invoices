@@ -121,6 +121,70 @@ def test_unexpected_blocking_issue_is_surfaced():
     assert not metrics.overall_semantic_match
 
 
+def test_equivalent_date_order_alias_and_field_are_accepted():
+    result = _result(
+        SemanticStatus.DENY,
+        [{"code": "invoice_date_after_due_date", "field": "invoice_date", "message": "dates conflict"}],
+    ).model_copy(
+        update={
+            "ingestion": IngestionResult(
+                status="accept",
+                source_path="date-order.json",
+                normalization=NormalizationResult(
+                    invoice={"invoice_date": "2026-09-15", "due_date": "2026-09-01", "items": []},
+                    evidence=[],
+                ),
+            )
+        }
+    )
+
+    metrics = evaluation.score_semantic_result(
+        {
+            "semantic": {
+                "expected_status": "DENY",
+                "expected_issues": [{"code": "contradictory_dates", "field": "due_date"}],
+            }
+        },
+        result,
+    )
+
+    assert metrics.overall_semantic_match
+
+
+def test_additional_supported_semantic_root_does_not_fail_a_deny_case():
+    result = _result(
+        SemanticStatus.DENY,
+        [
+            {"code": "negative_quantity", "field": "items[0].quantity", "message": "negative quantity"},
+            {"code": "negative_invoice_total", "field": "invoice_total", "message": "negative total"},
+        ],
+    ).model_copy(
+        update={
+            "ingestion": IngestionResult(
+                status="accept",
+                source_path="negative-values.json",
+                normalization=NormalizationResult(
+                    invoice={"items": [{"quantity": "-1"}], "invoice_total": "-10"},
+                    evidence=[],
+                ),
+            )
+        }
+    )
+
+    metrics = evaluation.score_semantic_result(
+        {
+            "semantic": {
+                "expected_status": "DENY",
+                "expected_issues": [{"code": "negative_quantity", "field": "items[0].quantity"}],
+            }
+        },
+        result,
+    )
+
+    assert metrics.unexpected_blocking_issue_count == 0
+    assert metrics.overall_semantic_match
+
+
 def test_critic_revision_count_is_captured():
     metrics = evaluation.score_semantic_result(
         {"semantic": {"expected_status": "PASS", "expected_issues": []}},

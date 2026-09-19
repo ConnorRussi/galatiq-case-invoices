@@ -2,5 +2,5 @@
   "invoice_id": "invoice_1013",
   "input": {"kind": "ingestion_golden", "path": "invoice_1013.json"},
   "semantic": {"expected_status": "PASS", "expected_issues": [], "expected_denial_stage": null},
-  "reconciliation": {"expected_status": "DENY", "expected_issue_codes": ["CONFLICTING_DUPLICATE_PRICE"], "expected_issue_fields": ["items[3].unit_price"]}
+  "reconciliation": {"expected_status": "DENY", "expected_issue_codes": ["TOTAL_MISMATCH"], "expected_issue_fields": ["invoice_total"], "expected_calculations": [{"check_type": "TOTAL", "outcome": "MISMATCH", "field": "invoice_total", "calculated": "22512.80", "declared": "22562.80"}]}
 }

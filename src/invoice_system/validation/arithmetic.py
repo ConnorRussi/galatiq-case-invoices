@@ -9,6 +9,12 @@ from typing import Any
 
 from invoice_system.ingestion.models import NormalizedInvoice
 
+from .models import (
+    ReconciliationCalculation,
+    ReconciliationCheckOutcome,
+    ReconciliationCheckType,
+)
+
 
 def decimal_sum(values: list[Decimal]) -> Decimal:
     """Add monetary values without converting through binary floats."""
@@ -83,7 +89,9 @@ def build_arithmetic_evidence(invoice: NormalizedInvoice) -> dict[str, Any]:
                 "source_lines": group["source_lines"],
                 "unit_prices": prices,
                 "derived_line_total": group["derived_total"] if group["quantities"] and prices else None,
-                "conflicting_prices": len(set(prices)) > 1,
+                # Different prices for the same normalized product are allowed.
+                # Arithmetic remains line-based; this group is an audit view.
+                "unit_price": prices[0] if len(set(prices)) == 1 else None,
             }
         )
 
@@ -111,3 +119,69 @@ def build_arithmetic_evidence(invoice: NormalizedInvoice) -> dict[str, Any]:
         "shipping": invoice.shipping,
         "discount": invoice.discount,
     }
+
+
+def build_reconciliation_checks(invoice: NormalizedInvoice) -> list[ReconciliationCalculation]:
+    """Materialize Decimal-based check outcomes for display and evaluation.
+
+    The specialist decides whether supported evidence warrants PASS or DENY,
+    but cannot relabel equal values as a mismatch.
+    """
+
+    evidence = build_arithmetic_evidence(invoice)
+    checks: list[ReconciliationCalculation] = []
+    for line in evidence["lines"]:
+        checks.append(
+            _check(
+                ReconciliationCheckType.LINE_TOTAL,
+                f"{line['field']}.line_amount",
+                line["calculated_line_amount"],
+                line["declared_line_amount"],
+                [line["line"]],
+            )
+        )
+    source_lines = [line["line"] for line in evidence["lines"]]
+    checks.append(
+        _check(
+            ReconciliationCheckType.SUBTOTAL,
+            "subtotal",
+            evidence["calculated_subtotal"],
+            evidence["declared_subtotal"],
+            source_lines,
+        )
+    )
+    checks.append(
+        _check(
+            ReconciliationCheckType.TOTAL,
+            "invoice_total",
+            evidence["calculated_total"],
+            evidence["declared_total"],
+            source_lines,
+        )
+    )
+    return checks
+
+
+def _check(
+    check_type: ReconciliationCheckType,
+    field: str,
+    calculated: Decimal | None,
+    declared: Decimal | None,
+    source_lines: list[int],
+) -> ReconciliationCalculation:
+    if calculated is None:
+        outcome = ReconciliationCheckOutcome.NOT_APPLICABLE
+    elif declared is None:
+        outcome = ReconciliationCheckOutcome.CALCULATED
+    elif calculated == declared:
+        outcome = ReconciliationCheckOutcome.MATCH
+    else:
+        outcome = ReconciliationCheckOutcome.MISMATCH
+    return ReconciliationCalculation(
+        check_type=check_type,
+        outcome=outcome,
+        field=field,
+        calculated=calculated,
+        declared=declared,
+        source_lines=source_lines,
+    )

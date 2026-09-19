@@ -289,6 +289,15 @@ def test_semantic_and_critic_use_the_same_scope_contract():
     assert "REVISE is the structured equivalent of disagreement" in critic_prompt.replace("\n", " ")
 
 
+def test_reconciliation_critic_prompt_is_isolated_from_semantic_phase_one_rules():
+    prompt = critic_module._critic_prompt("reconciliation")
+
+    assert "PHASE 2 RECONCILIATION SCOPE CONTRACT" in prompt
+    assert "Different unit prices for repeated normalized products are allowed" in prompt
+    assert "Phase 1 contract" not in prompt
+    assert "amount_due" not in prompt
+
+
 def test_critic_revises_reconciliation_only_denial(monkeypatch):
     original = ingestion({"items": [{"quantity": Decimal("2"), "unit_price": Decimal("5")} ]})
     monkeypatch.setattr(

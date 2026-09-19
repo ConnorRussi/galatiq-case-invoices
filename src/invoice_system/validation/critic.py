@@ -11,16 +11,14 @@ from .policy import semantic_scope_prompt
 from .reconciliation import reconciliation_scope_prompt
 
 
-def _critic_prompt() -> str:
-    return f"""You are the shared, scope-aware validation critic. Review the
-specialist's work for the named validation stage; do not replace the specialist
-or independently return PASS or DENY on its behalf.
+def _semantic_critic_prompt() -> str:
+    return f"""You are the Phase 1 Semantic validation critic. Review only the
+Semantic specialist's work; do not replace the specialist or independently
+return PASS or DENY on its behalf.
 
 {semantic_scope_prompt()}
 
-{reconciliation_scope_prompt()}
-
-For a Semantic result, independently review all five dimensions:
+Independently review all five dimensions:
 1. Evidence support: is every claimed issue supported by the immutable original
    ingestion output? Reject hallucinated, altered, or unsupported facts.
 2. Stage ownership: is every issue within the Semantic scope above? A factually
@@ -42,16 +40,38 @@ return REVISE and instruct it to return PASS after removing them. If a specialis
 passes an invoice with a real Semantic blocker, return REVISE. Return AGREE only
 when the stage work, root issues, and conclusion are all supported and in scope.
 
-For a Reconciliation result, independently verify every line calculation,
-subtotal/total relationship, repeated-product consolidation, source-line
-coverage, and stage boundary using the original ingestion output and the
-deterministic arithmetic evidence. A false PASS or unsupported arithmetic DENY
-requires REVISE. Do not turn inventory or business-policy observations into a
-reconciliation blocker.
+The original ingestion output is immutable source state. Neither specialist nor
+critic may rewrite it. Never directly return a stage PASS/DENY decision.
+"""
+
+
+def _reconciliation_critic_prompt() -> str:
+    return f"""You are the Phase 2 Reconciliation validation critic. Review only
+the Reconciliation specialist's work; do not replace the specialist or
+independently return PASS or DENY on its behalf.
+
+{reconciliation_scope_prompt()}
+
+Independently verify every line calculation, subtotal/total relationship,
+repeated-product consolidation, source-line coverage, and stage boundary using
+the original ingestion output and deterministic arithmetic evidence. Different
+unit prices for repeated normalized products are allowed, so they never justify
+a Reconciliation issue or denial by themselves. A false PASS or unsupported
+arithmetic DENY requires REVISE. Do not turn Semantic, inventory, database, or
+business-policy observations into a Reconciliation blocker.
 
 The original ingestion output is immutable source state. Neither specialist nor
 critic may rewrite it. Never directly return a stage PASS/DENY decision.
 """
+
+
+def _critic_prompt(current_stage: ValidationStage | str = ValidationStage.SEMANTIC) -> str:
+    """Return only the contract applicable to the stage under review."""
+
+    stage = ValidationStage(current_stage)
+    if stage == ValidationStage.SEMANTIC:
+        return _semantic_critic_prompt()
+    return _reconciliation_critic_prompt()
 
 
 def review_stage(
@@ -94,7 +114,7 @@ def review_stage(
         ensure_ascii=False,
     )
     return invoke_structured(
-        system_prompt=_critic_prompt(),
+        system_prompt=_critic_prompt(stage),
         content=content,
         output_model=CriticResult,
     )

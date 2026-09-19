@@ -7,8 +7,8 @@ import json
 from invoice_system.agent_runtime import invoke_structured
 from invoice_system.ingestion.models import IngestionResult
 
-from .arithmetic import build_arithmetic_evidence
-from .models import ReconciliationResult, ValidationStage
+from .arithmetic import build_arithmetic_evidence, build_reconciliation_checks
+from .models import ConsolidatedItem, ReconciliationResult, ValidationStage
 
 
 RECONCILIATION_SCOPE_CONTRACT = """
@@ -23,10 +23,12 @@ Reconciliation owns:
 - subtotal, tax, shipping, discount, and invoice total relationships when the
   corresponding values are present;
 - consolidation of repeated normalized products, including combined quantity,
-  derived amount, and every source line;
-- conflicting prices for repeated normalized products when they make the
-  invoice internally inconsistent; and
+  derived amount, every source line, and the original observed unit prices; and
 - contradictory arithmetic or omitted source lines in the specialist result.
+
+Different unit prices for repeated normalized products are allowed. Validate
+each source line independently; never report a price difference alone as a
+Reconciliation issue or denial.
 
 Reconciliation must not deny because of inventory, SQL/product lookup,
 vendor approval, purchase or amount thresholds, payment policy, or future
@@ -56,10 +58,15 @@ Execution rules:
 - Treat the arithmetic tool output as checkable evidence, not as a prose
   explanation to copy.
 - Preserve every source line in consolidated_items using one-based source line
-  references. Do not merge different normalized products.
+  references. Do not merge different normalized products. For a product with
+  multiple prices, preserve unit_prices and leave unit_price null.
 - Use Decimal-safe values and stable issue codes such as
-  LINE_TOTAL_MISMATCH, SUBTOTAL_MISMATCH, TOTAL_MISMATCH,
-  CONFLICTING_DUPLICATE_PRICE, or CONSOLIDATION_MISMATCH as appropriate.
+  LINE_TOTAL_MISMATCH, SUBTOTAL_MISMATCH, TOTAL_MISMATCH, or
+  CONSOLIDATION_MISMATCH as appropriate. Never use
+  CONFLICTING_DUPLICATE_PRICE: different source-line prices are allowed.
+- The returned consolidation and arithmetic checks are deterministic audit
+  outputs. Use the supplied evidence to decide the result; do not invent
+  calculation labels or outcomes.
 - A mathematically valid invoice remains PASS even if a later database or
   business stage could deny it.
 - The stage must be exactly "reconciliation".
@@ -95,4 +102,13 @@ def validate_reconciliation(
     )
     if result.stage != ValidationStage.RECONCILIATION:
         raise ValueError(f"Reconciliation agent returned unexpected stage: {result.stage}")
-    return result
+    evidence = build_arithmetic_evidence(ingestion.normalization.invoice)
+    return result.model_copy(
+        update={
+            "consolidated_items": [
+                ConsolidatedItem.model_validate(item)
+                for item in evidence["consolidated_items"]
+            ],
+            "calculations": build_reconciliation_checks(ingestion.normalization.invoice),
+        }
+    )

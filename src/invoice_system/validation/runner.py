@@ -118,7 +118,13 @@ def run_validation(
                     and revision_count <= MAX_CRITIC_REVISIONS
                     and not update["semantic_critic"].get("critic_revision_exhausted", False)
                 ):
-                    append_event(context.run_dir, "route", "revise", revision_count=revision_count)
+                    append_event(
+                        context.run_dir,
+                        "route",
+                        "revise",
+                        validation_stage="semantic",
+                        revision_count=revision_count,
+                    )
                     append_event(context.run_dir, "semantic", "started", version=version + 1)
             if progress_callback is not None:
                 progress_callback(
@@ -147,7 +153,13 @@ def run_validation(
                 write_artifact(context.run_dir, f"reconciliation_critic_v{version}.json", critic)
                 append_event(context.run_dir, "reconciliation_critic", "completed", decision=critic.decision.value, reason=critic.revision_instructions or critic.summary, revision_count=revision_count, version=version)
                 if critic.decision.value == "REVISE" and revision_count <= MAX_CRITIC_REVISIONS and not update["reconciliation_critic"].get("reconciliation_critic_revision_exhausted", False):
-                    append_event(context.run_dir, "route", "revise", stage="reconciliation", revision_count=revision_count)
+                    append_event(
+                        context.run_dir,
+                        "route",
+                        "revise",
+                        validation_stage="reconciliation",
+                        revision_count=revision_count,
+                    )
                     append_event(context.run_dir, "reconciliation", "started", version=version + 1)
             if progress_callback is not None:
                 progress_callback(

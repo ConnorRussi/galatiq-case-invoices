@@ -13,7 +13,11 @@ from decimal import Decimal
 from typing import Any
 
 from .arithmetic import normalize_product_name
-from .models import ReconciliationResult
+from .models import (
+    ReconciliationCheckOutcome,
+    ReconciliationCheckType,
+    ReconciliationResult,
+)
 
 
 @dataclass
@@ -41,18 +45,8 @@ def score_reconciliation_result(
     reconciliation = expected.get("reconciliation", expected)
     expected_status = str(reconciliation.get("expected_status", "PASS")).upper()
     expected_issues = _expected_issues(reconciliation)
-    actual_codes = [_normalise_code(issue.code) for issue in result.issues]
-    actual_fields = [_normalise_field(issue.field) for issue in result.issues if issue.field]
-    expected_codes = [
-        _normalise_code(issue["code"])
-        for issue in expected_issues
-        if issue["code"] != "__field_only__"
-    ]
-    expected_fields = [
-        _normalise_field(issue.get("field"))
-        for issue in expected_issues
-        if issue.get("field")
-    ]
+    expected_codes = [_normalise_code(issue["code"]) for issue in expected_issues if issue["code"] != "__field_only__"]
+    expected_fields = [_normalise_field(issue.get("field")) for issue in expected_issues if issue.get("field")]
     expected_pairs = {
         (_normalise_code(issue["code"]), _normalise_field(issue.get("field")))
         for issue in expected_issues
@@ -68,6 +62,15 @@ def score_reconciliation_result(
         for issue in expected_issues
         if issue["code"] == "__field_only__"
     }
+    status_match = result.status.value == expected_status
+    code_coverage = all(
+        any(_normalise_code(issue.code) == code for issue in result.issues)
+        for code in expected_codes
+    )
+    field_coverage = all(
+        any(_normalise_field(issue.field) == field for issue in result.issues)
+        for field in expected_fields
+    )
     unexpected = sum(
         issue.severity.value == "error"
         and not _issue_is_expected(
@@ -77,11 +80,12 @@ def score_reconciliation_result(
             expected_codes_with_wildcard_field,
             expected_field_only,
         )
+        and (
+            expected_status == "PASS"
+            or not _issue_is_supported_by_check(issue.code, issue.field, result)
+        )
         for issue in result.issues
     )
-    status_match = result.status.value == expected_status
-    code_coverage = _contains_all(expected_codes, actual_codes)
-    field_coverage = _contains_all(expected_fields, actual_fields)
     consolidation = _compare_consolidation(
         reconciliation.get("expected_consolidated_items", []),
         result,
@@ -137,6 +141,10 @@ def _compare_consolidation(
             return False
         if "expected_unit_price" in item and found.unit_price != Decimal(str(item["expected_unit_price"])):
             return False
+        if "expected_unit_prices" in item and found.unit_prices != [
+            Decimal(str(value)) for value in item["expected_unit_prices"]
+        ]:
+            return False
         if "expected_derived_line_total" in item and found.derived_line_total != Decimal(str(item["expected_derived_line_total"])):
             return False
     return set(actual) == expected_products
@@ -149,7 +157,8 @@ def _compare_arithmetic(expected: list[dict[str, Any]], result: ReconciliationRe
         matches = [
             calculation
             for calculation in result.calculations
-            if _normalise_code(calculation.code) == _normalise_code(item["code"])
+            if calculation.check_type.value
+            == str(item.get("check_type", item.get("code"))).upper()
         ]
         if item.get("field") is not None:
             matches = [
@@ -160,10 +169,37 @@ def _compare_arithmetic(expected: list[dict[str, Any]], result: ReconciliationRe
         if not matches:
             return False
         match = matches[0]
+        if "outcome" in item and match.outcome.value != str(item["outcome"]).upper():
+            return False
         for key in ("calculated", "declared"):
             if key in item and getattr(match, key) != Decimal(str(item[key])):
                 return False
     return True
+
+
+_MISMATCH_CHECK_TYPES = {
+    "line_total_mismatch": ReconciliationCheckType.LINE_TOTAL,
+    "subtotal_mismatch": ReconciliationCheckType.SUBTOTAL,
+    "total_mismatch": ReconciliationCheckType.TOTAL,
+}
+
+
+def _issue_is_supported_by_check(
+    code: str,
+    field: str | None,
+    result: ReconciliationResult,
+) -> bool:
+    """Allow additional real arithmetic findings, but not invented blockers."""
+
+    check_type = _MISMATCH_CHECK_TYPES.get(_normalise_code(code))
+    if check_type is None:
+        return False
+    return any(
+        check.check_type == check_type
+        and check.outcome == ReconciliationCheckOutcome.MISMATCH
+        and (field is None or _normalise_field(check.field) == _normalise_field(field))
+        for check in result.calculations
+    )
 
 
 def _issue_is_expected(

@@ -6,6 +6,7 @@ from invoice_system.validation import runner
 from invoice_system.validation import critic as critic_module
 from invoice_system.validation import reconciliation_evaluation as evaluation
 from invoice_system.validation import reconciliation_runner as reconciliation_runner_module
+from invoice_system.validation import reconciliation as reconciliation_module
 from invoice_system.validation import graph as graph_module
 from invoice_system.validation.models import (
     CriticDecision,
@@ -17,6 +18,7 @@ from invoice_system.validation.models import (
     ValidationStage,
     ValidationStatus,
 )
+from invoice_system.ingestion.run_logging import RunContext
 
 
 def ingestion(items, **invoice_fields):
@@ -56,6 +58,33 @@ def test_reconciliation_critic_receives_decimal_evidence(monkeypatch):
 
     assert result.decision == CriticDecision.AGREE
     assert captured["arithmetic_tool_output"]["calculated_subtotal"] == "80"
+
+
+def test_reconciliation_materializes_deterministic_consolidation_and_check_outcomes(monkeypatch):
+    monkeypatch.setattr(
+        reconciliation_module,
+        "invoke_structured",
+        lambda **kwargs: kwargs["output_model"].model_validate(
+            {"status": "PASS", "summary": "Arithmetic reconciles."}
+        ),
+    )
+
+    result = reconciliation_module.validate_reconciliation(
+        ingestion(
+            [
+                {"item_name": "Gadget A", "quantity": "5", "unit_price": "10", "line_amount": "50"},
+                {"item_name": "Gadget A", "quantity": "3", "unit_price": "20", "line_amount": "60"},
+            ],
+            subtotal="110",
+            tax_amount="0",
+            invoice_total="110",
+        )
+    )
+
+    item = result.consolidated_items[0]
+    assert item.unit_prices == [Decimal("10"), Decimal("20")]
+    assert item.unit_price is None
+    assert all(check.outcome.value == "MATCH" for check in result.calculations)
 
 
 def test_reconciliation_runner_reports_specialist_and_critic_progress(monkeypatch):
@@ -212,3 +241,65 @@ def test_reconciliation_consolidation_accuracy_rejects_unexpected_products():
 
     assert not metrics.consolidation_accuracy
     assert not metrics.overall_reconciliation_match
+
+
+def test_semantic_revision_logs_and_retries_without_a_stage_argument_collision(tmp_path, monkeypatch):
+    calls = {"semantic": 0, "critic": 0}
+
+    def semantic_stub(*args, **kwargs):
+        calls["semantic"] += 1
+        return SemanticResult(status=SemanticStatus.PASS, issues=[], summary="semantic pass")
+
+    def critic_stub(*args, **kwargs):
+        calls["critic"] += 1
+        return critic(CriticDecision.REVISE if calls["critic"] == 1 else CriticDecision.AGREE)
+
+    monkeypatch.setattr(graph_module, "validate_semantics", semantic_stub)
+    monkeypatch.setattr(graph_module, "review_stage", critic_stub)
+    run_dir = tmp_path / "semantic-revision"
+    run_dir.mkdir()
+
+    result = runner.run_validation(
+        ingestion([]),
+        artifact_context=RunContext(run_id="semantic-revision", run_dir=run_dir),
+    )
+
+    events = [json.loads(line) for line in (run_dir / "events.jsonl").read_text().splitlines()]
+    assert result.status == ValidationStatus.VALID
+    assert calls == {"semantic": 2, "critic": 2}
+    assert any(event["event"] == "revise" and event["validation_stage"] == "semantic" for event in events)
+
+
+def test_reconciliation_revision_logs_and_retries_without_a_stage_argument_collision(tmp_path, monkeypatch):
+    calls = {"reconciliation": 0}
+    monkeypatch.setattr(
+        graph_module,
+        "validate_semantics",
+        lambda *args, **kwargs: SemanticResult(status=SemanticStatus.PASS, issues=[], summary="semantic pass"),
+    )
+
+    def reconciliation_stub(*args, **kwargs):
+        calls["reconciliation"] += 1
+        return recon()
+
+    def critic_stub(*args, **kwargs):
+        stage = args[1]
+        if stage == ValidationStage.RECONCILIATION and calls["reconciliation"] == 1:
+            return critic(CriticDecision.REVISE)
+        return critic(CriticDecision.AGREE)
+
+    monkeypatch.setattr(graph_module, "validate_reconciliation", reconciliation_stub)
+    monkeypatch.setattr(graph_module, "review_stage", critic_stub)
+    run_dir = tmp_path / "reconciliation-revision"
+    run_dir.mkdir()
+
+    result = runner.run_validation(
+        ingestion([]),
+        artifact_context=RunContext(run_id="reconciliation-revision", run_dir=run_dir),
+        run_reconciliation=True,
+    )
+
+    events = [json.loads(line) for line in (run_dir / "events.jsonl").read_text().splitlines()]
+    assert result.status == ValidationStatus.VALID
+    assert calls["reconciliation"] == 2
+    assert any(event["event"] == "revise" and event["validation_stage"] == "reconciliation" for event in events)
