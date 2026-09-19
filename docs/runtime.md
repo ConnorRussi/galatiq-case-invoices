@@ -11,6 +11,8 @@ the configured TAMUS-compatible `/api/chat/completions` endpoint through
 Required settings are `TAMUS_AI_CHAT_API_KEY` and `TAMUS_AI_CHAT_MODEL`.
 `TAMUS_AI_CHAT_API_ENDPOINT` defaults to `https://chat-api.tamu.ai`.
 LangSmith tracing is optional.
+`INVENTORY_DATABASE_PATH` optionally selects the SQLite database; the
+`--database-path` CLI option takes precedence.
 
 Approval model selection uses `BUSINESS_RULE_MODEL` for the Business Rule Agent.
 The VP Agent uses `VP_REASONING_MODEL`, then `VP_MODEL`, then
@@ -21,8 +23,9 @@ The VP Agent uses `VP_REASONING_MODEL`, then `VP_MODEL`, then
 - Transport failures are retried up to three attempts.
 - Invalid structured output gets one schema-correction attempt, then becomes a
   `ModelInvocationError`.
-- The runner catches stage exceptions and returns `technical_failure` with the
-  failure context; it does not invent a normalized invoice.
+- Ingestion and validation return structured `technical_failure` results with
+  partial completed-stage context; approval records an error artifact and raises
+  because it must never manufacture an approval decision.
 - Critique revisions are a workflow bound of two, separate from HTTP retries.
 
 ## Run artifacts
@@ -34,9 +37,10 @@ runs. `run_logging.py` serializes models, dates, decimals, and paths into JSON.
 When validation is requested, the same run directory also contains
 `validation_input.json`, versioned `semantic_vN.json` and
 `semantic_critic_vN.json` artifacts, and, for full validation,
-`reconciliation_vN.json`, `reconciliation_critic_vN.json`, and
-`validation_result.json`; validation events use the existing `events.jsonl`
-schema.
+`reconciliation_vN.json`, `reconciliation_critic_vN.json`, `database_vN.json`,
+`database_critic_vN.json`, and `validation_result.json`; technical validation
+failures write `validation_error.json`. Approval failures write
+`approval_error.json`. Validation events use the existing `events.jsonl` schema.
 
 ## Commands
 
@@ -44,6 +48,7 @@ schema.
 python -m pip install -e ".[ingestion,ingestion-dev]"
 python main.py --invoice_path=data/invoices/invoice_1001.txt
 python main.py --invoice_path=data/invoices/invoice_1001.txt --validate
+python main.py --invoice_path=data/invoices/invoice_1001.txt --validate --database-path=inventory.sqlite
 python main.py --eval-ingestion
 python main.py --eval-validation
 python main.py --eval-approval

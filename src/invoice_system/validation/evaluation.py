@@ -311,8 +311,27 @@ def _normalise_code(value: str) -> str:
 def _normalise_field(value: str | None) -> str | None:
     if value is None:
         return None
-    field = value.strip().removeprefix("invoice.")
-    return field.replace("line_items[", "items[")
+    field = value.strip().casefold().removeprefix("invoice.")
+    field = field.replace("line_items[", "items[")
+    field = field.replace("additional_fields.", "")
+    aliases = {
+        "qty": "quantity",
+        "product": "item_name",
+        "product_name": "item_name",
+        "description": "item_name",
+        "date_due": "due_date",
+        "due": "due_date",
+        "balance_due": "amount_due",
+        "total_due": "amount_due",
+        "amount_payable": "amount_due",
+        "grand_total": "invoice_total",
+        "total": "invoice_total",
+    }
+    prefix, separator, leaf = field.rpartition(".")
+    if leaf.endswith("_raw"):
+        leaf = leaf[:-4]
+    leaf = aliases.get(leaf, leaf)
+    return f"{prefix}{separator}{leaf}" if separator else leaf
 
 
 _SEMANTIC_CODE_FAMILIES = {
@@ -1185,11 +1204,7 @@ def _missing_issue_descriptions(expected: dict[str, Any], actual_issues: list[An
         if issue.code == "__field_only__":
             matched = any(_normalise_field(actual.field) == _normalise_field(issue.field) for actual in actual_issues)
         else:
-            matched = any(
-                _normalise_code(actual.code) == _normalise_code(issue.code)
-                and (issue.field is None or _normalise_field(actual.field) == _normalise_field(issue.field))
-                for actual in actual_issues
-            )
+            matched = any(_issue_matches_expected(actual, issue) for actual in actual_issues)
         if not matched:
             descriptions.append(
                 f"missing Semantic issue: code={issue.code}, field={issue.field}"

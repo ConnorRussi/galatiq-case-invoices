@@ -22,7 +22,8 @@ of `FieldEvidence`. Evidence uses invoice-relative paths such as
 
 `IngestionResult` combines the source path, source document, latest
 normalization, latest critique, revision count, and optional error message.
-Its status is one of `accept`, `needs_review`, or `technical_failure`.
+Its status is one of `accept`, `needs_review`, or `technical_failure`. Only
+`accept` and `needs_review` may enter validation.
 
 ## Semantic validation contracts
 
@@ -35,10 +36,12 @@ and emits typed models in [`validation/models.py`](../src/invoice_system/validat
   and a summary.
 - `CriticResult` contains `AGREE` or `REVISE`, findings, and revision
   instructions. It never returns a specialist PASS/DENY decision.
-- `ValidationResult` contains `VALID` or `DENIED`, a reason, denial stage,
+- `ValidationResult` contains `VALID`, `DENIED`, or `TECHNICAL_FAILURE`, a reason, denial stage,
   issues, the immutable ingestion snapshot, and stage-specific specialist and
   critic records. It deliberately has no generic `critic_result`: that name
-  would change meaning depending on which stage ran last.
+  would change meaning depending on which stage ran last. A provider or graph
+  error produces `TECHNICAL_FAILURE` with an error message and any completed
+  stage results; it is never treated as valid.
 
 The shared Phase 1 scope contract is defined in
 [`validation/policy.py`](../src/invoice_system/validation/policy.py) and is used
@@ -89,6 +92,9 @@ consolidation.
 normalized invoice, optional source document, and trusted upstream validation
 and reconciliation results. `BusinessRuleDecision` is one of `ACCEPT`,
 `REJECT`, or `VP_REVIEW`; `VPDecision` is `GO` or `NO_GO`.
+
+The upstream validation and reconciliation inputs are typed status envelopes;
+arbitrary `Any` payloads are not accepted at this boundary.
 
 `ApprovalResult` is the terminal approval contract. It records `APPROVED` or
 `REJECTED`, the decision source, both structured decisions when applicable, and

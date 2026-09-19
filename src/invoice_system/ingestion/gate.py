@@ -10,8 +10,13 @@ def build_completed_result(
     normalization: NormalizationResult | None,
     critique: CritiqueResult | None,
     revision_count: int,
+    revision_errors: list[str] | None = None,
 ) -> IngestionResult:
-    status = IngestionStatus.ACCEPT if critique is not None and not critique.issues else IngestionStatus.NEEDS_REVIEW
+    status = (
+        IngestionStatus.ACCEPT
+        if critique is not None and not critique.issues and not revision_errors
+        else IngestionStatus.NEEDS_REVIEW
+    )
     return IngestionResult(
         status=status,
         source_path=source_path,
@@ -19,6 +24,7 @@ def build_completed_result(
         normalization=normalization,
         critique=critique,
         revision_count=revision_count,
+        error_message=revision_errors[-1] if revision_errors else None,
     )
 
 

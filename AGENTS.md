@@ -7,7 +7,8 @@ These instructions apply to every change in this repository.
 Read [`docs/index.md`](docs/index.md) first. It is the documentation graph for
 humans and coding agents. Follow links from there to the relevant architecture
 and feature node before editing code. The current implementation is an invoice
-ingestion pipeline; validation, approval, and payment are not implemented
+ingestion pipeline plus Semantic, Reconciliation, Database, and isolated
+approval boundaries; payment and end-to-end approval wiring are not implemented
 production stages yet.
 
 ## Documentation is part of the implementation

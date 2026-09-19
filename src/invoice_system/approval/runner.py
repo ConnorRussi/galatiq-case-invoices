@@ -1,11 +1,9 @@
 """Official execution boundary for final approval."""
 
 from pathlib import Path
-from typing import Any
-
 from ..ingestion.run_logging import RunContext, make_run_id
 from .graph import build_graph
-from .models import ApprovalRequest, ApprovalResult
+from .models import ApprovalRequest, ApprovalResult, upstream_status_value
 from .run_logging import ApprovalRunLogger
 
 
@@ -30,7 +28,13 @@ def run_approval(
         logger.event("approval", "started", invoice_id=request.invoice_id)
     state = {"request": request, "business_rule_decision": None, "vp_decision": None, "result": None}
     final = None
-    for update in build_graph().stream(state, stream_mode="updates"):
+    for update in _stream_updates(state):
+        if "__technical_failure__" in update:
+            error = update["__technical_failure__"]
+            if logger is not None:
+                logger.event("approval", "technical_failure", error=str(error))
+                logger.save_error(error)
+            raise RuntimeError(f"Approval graph failed: {error}") from error
         if logger is not None and "business_rule_agent" in update:
             decision = update["business_rule_agent"]["business_rule_decision"]
             logger.event("business_rule_agent", "decision", decision=decision.decision, triggered_rules=decision.triggered_rules, reasoning=decision.reasoning, concerns=decision.concerns)
@@ -49,8 +53,8 @@ def run_approval(
 
 def _require_upstream_pass(request: ApprovalRequest) -> None:
     """Keep validation failures outside the approval graph."""
-    validation_status = _status_value(request.validation_result)
-    reconciliation_status = _status_value(request.reconciliation_result)
+    validation_status = upstream_status_value(request.validation_result)
+    reconciliation_status = upstream_status_value(request.reconciliation_result)
     if validation_status != "VALID":
         raise ValueError(
             f"approval requires validation status VALID, got {validation_status!r}"
@@ -61,13 +65,8 @@ def _require_upstream_pass(request: ApprovalRequest) -> None:
         )
 
 
-def _status_value(value: Any) -> str | None:
-    if value is None:
-        return None
-    if hasattr(value, "status"):
-        value = value.status
-    if isinstance(value, dict):
-        value = value.get("status")
-    if hasattr(value, "value"):
-        value = value.value
-    return str(value).upper() if value is not None else None
+def _stream_updates(state: dict):
+    try:
+        yield from build_graph().stream(state, stream_mode="updates")
+    except Exception as exc:
+        yield {"__technical_failure__": exc}

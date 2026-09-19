@@ -84,6 +84,28 @@ def test_deny_expectation_and_matching_issue_score_correctly():
     assert metrics.overall_semantic_match
 
 
+def test_semantic_scoring_accepts_raw_additional_field_aliases():
+    metrics = evaluation.score_semantic_result(
+        {
+            "semantic": {
+                "expected_status": "DENY",
+                "expected_issues": [{"code": "relative_date", "field": "due_date"}],
+            }
+        },
+        _result(
+            SemanticStatus.DENY,
+            [{
+                "code": "relative_date",
+                "field": "additional_fields.due_date_raw",
+                "message": "Relative date.",
+            }],
+        ),
+    )
+
+    assert metrics.expected_issue_code_coverage
+    assert metrics.expected_issue_field_coverage
+
+
 def test_status_mismatch_is_surfaced():
     metrics = evaluation.score_semantic_result(
         {"semantic": {"expected_status": "DENY", "expected_issues": []}},

@@ -11,9 +11,9 @@ before changing code.
 ```text
 CLI (main.py)
   -> ingestion runner -> IngestionResult
-  -> optional validation runner -> ValidationResult
+  -> validation runner (Semantic -> Reconciliation -> Database) -> ValidationResult
   -> standalone approval runner -> ApprovalResult
-  -> shared run artifacts (ingestion/run_logging.py)
+  -> stage-specific run artifacts
 ```
 
 The implemented boundaries include evidence-preserving ingestion, the

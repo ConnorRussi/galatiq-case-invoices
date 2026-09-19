@@ -44,6 +44,12 @@ Validation tests stub the shared structured model boundary; they exercise the
 actual Semantic -> Reconciliation LangGraph and do not require live provider
 credentials.
 
+Expected issue matching is intentionally contract-aware rather than tied to one
+serialization choice. It accepts invoice-relative paths, common field aliases,
+and equivalent `additional_fields.*_raw` representations when they describe the
+same semantic fact. Exact natural-language wording and storage location are not
+treated as correctness requirements.
+
 ## Validation Agent evaluation
 
 The authoritative Validation suite is isolated from live ingestion. Cases under
@@ -103,6 +109,10 @@ validation artifacts remain the same (`validation_input.json`, versioned
 `expected.json`, `evaluation.json`, and a suite `summary.json` added by the
 evaluator. Terminal output reports actual stage work, expected stop, final
 state comparison, and `EVAL: PASS` or `EVAL: FAIL` per case.
+
+Ingestion critic challenges use one accepted representative fixture to control
+live model cost; the golden corpus still scores every expected fixture. Focused
+tests cover alternate field placement and naming conventions.
 
 ## Adding a new feature
 

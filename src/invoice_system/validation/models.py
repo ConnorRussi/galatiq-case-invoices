@@ -27,6 +27,7 @@ class CriticDecision(str, Enum):
 class ValidationStatus(str, Enum):
     VALID = "VALID"
     DENIED = "DENIED"
+    TECHNICAL_FAILURE = "TECHNICAL_FAILURE"
 
 
 class IssueSeverity(str, Enum):
@@ -61,7 +62,7 @@ class ConsolidatedItem(BaseModel):
 
     product_name: str = Field(min_length=1)
     normalized_product: str = Field(min_length=1)
-    combined_quantity: Decimal
+    combined_quantity: Decimal | None
     source_lines: list[int] = Field(min_length=1)
     # A group-level price is meaningful only when every source line has the
     # same price. Keep all observed prices so consolidation never discards the
@@ -146,10 +147,11 @@ class ValidationResult(BaseModel):
     reason: str
     denied_by: ValidationStage | None = None
     issues: list[ValidationIssue] = Field(default_factory=list)
-    semantic_result: SemanticResult
+    semantic_result: SemanticResult | None
     ingestion: IngestionResult
     semantic_critic_result: CriticResult | None = None
     reconciliation_result: ReconciliationResult | None = None
     reconciliation_critic_result: CriticResult | None = None
     database_result: DatabaseValidationResult | None = None
     database_critic_result: CriticResult | None = None
+    error_message: str | None = None

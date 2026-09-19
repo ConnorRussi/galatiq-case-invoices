@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from invoice_system.ingestion.models import NormalizedInvoice
+from invoice_system.ingestion.models import IngestionResult, NormalizationResult, NormalizedInvoice
 from invoice_system.validation.arithmetic import (
     build_arithmetic_evidence,
     build_reconciliation_checks,
@@ -8,6 +8,7 @@ from invoice_system.validation.arithmetic import (
     decimal_subtract,
     decimal_sum,
 )
+from invoice_system.validation.database import resolve_inventory
 from invoice_system.validation.models import ReconciliationCheckOutcome, ReconciliationCheckType
 
 
@@ -53,6 +54,32 @@ def test_consolidation_preserves_multiple_prices_without_a_conflict_signal():
     assert consolidated["unit_price"] is None
     assert "conflicting_prices" not in consolidated
     assert consolidated["derived_line_total"] == Decimal("110")
+
+
+def test_missing_quantity_is_not_consolidated_as_zero():
+    invoice = NormalizedInvoice.model_validate({
+        "items": [{"item_name": "Gadget A", "unit_price": "10"}],
+    })
+
+    consolidated = build_arithmetic_evidence(invoice)["consolidated_items"][0]
+
+    assert consolidated["combined_quantity"] is None
+
+
+def test_database_denies_inventory_sufficiency_without_quantity():
+    ingestion = IngestionResult(
+        status="accept",
+        source_path="controlled.json",
+        normalization=NormalizationResult(
+            invoice={"items": [{"item_name": "WidgetA"}]},
+            evidence=[],
+        ),
+    )
+
+    result = resolve_inventory(ingestion, db_path="inventory.sqlite")
+
+    assert result.status.value == "DENY"
+    assert result.issues[0].code == "MISSING_QUANTITY"
 
 
 def test_reconciliation_checks_use_decimal_outcomes_not_model_labels():

@@ -1,6 +1,7 @@
 import json
 from datetime import date
 from decimal import Decimal
+import pytest
 
 from invoice_system.ingestion.models import (
     IngestionResult,
@@ -69,6 +70,30 @@ def test_valid_invoice_passes_and_critic_agrees(monkeypatch):
     assert result.status == ValidationStatus.VALID
     assert result.reason == "semantic_pass"
     assert original.model_dump(mode="json") == before
+
+
+def test_technical_ingestion_failure_cannot_enter_validation():
+    original = ingestion({"items": [{"quantity": Decimal("2")}]})
+    original.status = "technical_failure"
+
+    with pytest.raises(ValueError, match="accepted or reviewable ingestion"):
+        runner.run_validation(original, persist_artifacts=False)
+
+
+def test_validation_graph_failure_returns_structured_technical_result(monkeypatch):
+    original = ingestion({"items": [{"quantity": Decimal("2")}]})
+
+    class FailingGraph:
+        def stream(self, state, stream_mode):
+            raise RuntimeError("provider unavailable")
+
+    monkeypatch.setattr(runner, "build_graph", lambda **kwargs: FailingGraph())
+
+    result = runner.run_validation(original, persist_artifacts=False)
+
+    assert result.status == ValidationStatus.TECHNICAL_FAILURE
+    assert result.reason == "technical_failure"
+    assert result.error_message == "provider unavailable"
 
 
 def test_future_invoice_date_is_not_a_semantic_blocker(monkeypatch):

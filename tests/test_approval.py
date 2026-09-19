@@ -5,18 +5,19 @@ import shutil
 import pytest
 
 from invoice_system.approval import agents
-from invoice_system.approval.evaluation import run_approval_evaluation
 from invoice_system.approval import graph as approval_graph
+from invoice_system.approval import runner as approval_runner
 from invoice_system.approval.evaluation import run_approval_evaluation
 from invoice_system.approval.models import ApprovalRequest, BusinessRuleDecision, VPDecision
 from invoice_system.approval.runner import run_approval
+from invoice_system.ingestion.run_logging import RunContext
 
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def _request(invoice_id: str = "approval-test") -> ApprovalRequest:
-    return ApprovalRequest.model_validate({
+    request = ApprovalRequest.model_validate({
         "invoice_id": invoice_id,
         "normalization": {
             "invoice": {
@@ -32,6 +33,9 @@ def _request(invoice_id: str = "approval-test") -> ApprovalRequest:
         "validation_result": {"status": "VALID"},
         "reconciliation_result": {"status": "PASS"},
     })
+    assert request.validation_result.status == "VALID"
+    assert request.reconciliation_result.status == "PASS"
+    return request
 
 
 def test_direct_accept_finishes_in_business_rule_bucket(monkeypatch):
@@ -51,6 +55,20 @@ def test_direct_accept_finishes_in_business_rule_bucket(monkeypatch):
     assert result.decision_source == "BUSINESS_RULE_AGENT"
     assert result.vp_decision is None
     assert calls == [BusinessRuleDecision]
+
+
+def test_approval_graph_failure_writes_error_artifact(tmp_path, monkeypatch):
+    class FailingGraph:
+        def stream(self, state, stream_mode):
+            raise RuntimeError("approval provider unavailable")
+
+    monkeypatch.setattr(approval_runner, "build_graph", lambda: FailingGraph())
+    context = RunContext("approval-failure", tmp_path / "approval")
+
+    with pytest.raises(RuntimeError, match="Approval graph failed"):
+        run_approval(_request(), artifact_context=context)
+
+    assert (context.run_dir / "approval_error.json").exists()
 
 
 def test_direct_reject_finishes_in_business_rule_bucket_without_vp(monkeypatch):

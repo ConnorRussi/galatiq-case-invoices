@@ -2,9 +2,37 @@
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from ..ingestion.models import NormalizationResult, SourceDocument
+
+
+class UpstreamValidationResult(BaseModel):
+    """Typed validation status supplied to the isolated approval boundary."""
+
+    model_config = ConfigDict(extra="allow")
+    status: Literal["VALID", "DENIED", "TECHNICAL_FAILURE"]
+
+
+class UpstreamReconciliationResult(BaseModel):
+    """Typed reconciliation status supplied to the isolated approval boundary."""
+
+    model_config = ConfigDict(extra="allow")
+    status: Literal["PASS", "DENY"]
+
+
+def upstream_status_value(value: Any) -> str | None:
+    """Read a status from typed or legacy-shaped upstream input."""
+
+    if value is None:
+        return None
+    if hasattr(value, "status"):
+        value = value.status
+    if isinstance(value, dict):
+        value = value.get("status")
+    if hasattr(value, "value"):
+        value = value.value
+    return str(value).upper() if value is not None else None
 
 
 class BusinessRuleDecision(BaseModel):
@@ -26,8 +54,8 @@ class ApprovalRequest(BaseModel):
     invoice_id: str
     source_document: SourceDocument | None = None
     normalization: NormalizationResult
-    validation_result: Any = None
-    reconciliation_result: Any = None
+    validation_result: UpstreamValidationResult
+    reconciliation_result: UpstreamReconciliationResult
 
 
 class ApprovalResult(BaseModel):

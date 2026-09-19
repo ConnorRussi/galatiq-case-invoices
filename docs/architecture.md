@@ -5,7 +5,9 @@
 The system reads an invoice document, preserves the extracted source as
 immutable chunks, asks a configured chat model for a structured invoice
 normalization with field evidence, critiques that result against the source,
-and performs at most two targeted revisions before producing a terminal result.
+and performs at most two targeted revisions before validation. Validation then
+reviews Semantic, Reconciliation, and Database concerns. Approval remains an
+isolated downstream boundary until end-to-end wiring is added.
 
 ## Runtime boundaries
 

@@ -16,6 +16,10 @@ class ModelInvocationError(Exception):
     """Configuration, API, or structured response failure."""
 
 
+class StructuredOutputError(ModelInvocationError):
+    """The model response remained invalid after the schema correction retry."""
+
+
 @traceable(name="TAMUS structured output", run_type="llm")
 def invoke_structured[T: BaseModel](
     *, system_prompt: str, content: str, output_model: type[T], model: str | None = None
@@ -42,7 +46,7 @@ def invoke_structured[T: BaseModel](
                 return output_model.model_validate_json(text)
             except ValidationError as exc:
                 if schema_attempt:
-                    raise ModelInvocationError(
+                    raise StructuredOutputError(
                         f"TAMUS returned invalid structured output after schema retry: {exc}"
                     ) from exc
                 logger.warning("[model] Structured output failed schema validation; requesting one correction")

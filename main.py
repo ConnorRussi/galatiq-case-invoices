@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+import os
 from pathlib import Path
 import sys
 
@@ -49,6 +50,11 @@ def main() -> int:
         action="store_true",
         help="Run Semantic, Reconciliation, and Database validation after ingestion",
     )
+    parser.add_argument(
+        "--database-path",
+        default=os.getenv("INVENTORY_DATABASE_PATH"),
+        help="SQLite inventory database used by --validate",
+    )
     args = parser.parse_args()
     validation_eval_flags = (args.eval_validation, args.eval_semantic, args.eval_reconciliation)
     if args.eval_ingestion and (args.eval_approval or any(validation_eval_flags)):
@@ -89,10 +95,11 @@ def main() -> int:
             artifact_context=context,
             run_reconciliation=True,
             run_database=True,
+            database_path=args.database_path,
         )
         print(f"Validation status: {validation.status.value}")
         print(validation.model_dump_json(indent=2))
-        return 1 if validation.status == ValidationStatus.DENIED else 0
+        return 0 if validation.status == ValidationStatus.VALID else 1
     return 0
 
 

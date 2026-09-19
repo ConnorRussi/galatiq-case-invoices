@@ -1,10 +1,11 @@
 # Galatiq Case: Invoice Processing Automation
 
-## Current implementation: Phase 1
+## Current implementation
 
-The active application reads one invoice, preserves its source, and asks an LLM
-to normalize the document's claims with separate source evidence. The graph is
-exactly `START -> read_source -> normalize -> END`.
+The application preserves invoice source content, normalizes claims with separate
+source evidence, validates Semantic/Reconciliation/Database concerns, and
+provides an isolated Business Rule/VP approval boundary. Approval is not yet
+wired into the validation runner and payment is not implemented.
 
 Supported sources: PDF (native pdfplumber text), TXT, Markdown, CSV, JSON, XML.
 Source chunks are immutable. CSV headers and rows remain in order; JSON and XML
@@ -18,13 +19,15 @@ Install with Python 3.13 or later:
 ```bash
 python -m pip install -e ".[ingestion]"
 python main.py --invoice_path=data/invoices/invoice_1001.txt
+python main.py --invoice_path=data/invoices/invoice_1001.txt --validate
+python main.py --invoice_path=data/invoices/invoice_1001.txt --validate --database-path=inventory.sqlite
 ```
 
-Each CLI run creates `runs/<run_id>/`. After reading, `source.json` is saved before
+Each CLI run creates `logs/runs/<run_id>/`. After reading, `source.json` is saved before
 normalization begins. On success, `normalized.json` contains `{invoice, evidence}`
-and stdout prints just the invoice as readable JSON. Dates serialize as ISO dates;
-Decimal values serialize as strings to preserve precision. Errors return exit
-code 1 and save a traceback in `error.log`; they never create a fake invoice.
+and the CLI prints the final status and invoice JSON. Dates serialize as ISO
+dates; Decimal values serialize as strings to preserve precision. Errors return
+exit code 1 and preserve partial artifacts; they never create a fake invoice.
 
 Copy `.env.example` to `.env` and set `TAMUS_AI_CHAT_API_KEY` and
 `TAMUS_AI_CHAT_MODEL` to your institution's key and exact model ID. The endpoint
@@ -35,11 +38,11 @@ and checks the returned JSON with Pydantic. Server-side schema enforcement is
 not assumed. Invalid output raises a technical error without a correction loop.
 Set `LANGSMITH_TRACING=true` and `LANGSMITH_API_KEY` to enable optional tracing.
 See [PHASE1_HANDOFF.md](PHASE1_HANDOFF.md) for exact schemas, prompt, decisions,
-and the verification record.
+and the historical Phase 1 verification record. Current architecture is in
+[`docs/index.md`](docs/index.md).
 
-There is no critic, revision loop, gate, inventory access, arithmetic validation,
-approval, payment, or evaluation framework. The original case below describes
-future work and does not expand the scope of this checkpoint.
+The original case narrative below describes the business goal; it does not imply
+that payment or an end-to-end approval workflow is available.
 
 ## Background
 
@@ -54,7 +57,7 @@ Acme Corp is a PE-backed manufacturing firm losing **$2M/year** on manual invoic
 
 Build a **multi-agent system** that automates the end-to-end invoice processing workflow. The system must run as a working prototype — not just designs or slides.
 
-> **Repository status:** Phase 1 ingestion is implemented; see the current implementation notes above.
+> **Repository status:** Ingestion, validation, and isolated approval are implemented; payment and end-to-end approval wiring remain planned.
 
 ## Repository Documentation
 

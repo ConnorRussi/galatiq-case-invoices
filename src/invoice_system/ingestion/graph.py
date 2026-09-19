@@ -4,6 +4,8 @@ import logging
 
 from langgraph.graph import END, START, StateGraph
 
+from invoice_system.agent_runtime import StructuredOutputError
+
 from .critic import critique
 from .gate import build_completed_result
 from .models import CritiqueIssue, CritiqueResult
@@ -33,6 +35,7 @@ def normalize_node(state: IngestionState) -> dict:
         "revision_count": 0,
         "critique_history": [],
         "critic_instability": None,
+        "revision_errors": [],
     }
 
 
@@ -81,9 +84,17 @@ def revise_node(state: IngestionState) -> dict:
         raise ValueError("revise requires source, normalization, and critique")
     revision_count = state["revision_count"] + 1
     logger.info("[revise] Revision %s/%s", revision_count, MAX_REVISIONS)
-    revised = revise_normalization(source, normalization, current_critique)
+    try:
+        revised = revise_normalization(source, normalization, current_critique)
+    except StructuredOutputError as exc:
+        logger.warning("[revise] Invalid structured output; preserving last valid candidate: %s", exc)
+        return {
+            "normalization": normalization,
+            "revision_count": revision_count,
+            "revision_errors": [*state.get("revision_errors", []), str(exc)],
+        }
     logger.info("[revise] Complete")
-    return {"normalization": revised, "revision_count": revision_count}
+    return {"normalization": revised, "revision_count": revision_count, "revision_errors": state.get("revision_errors", [])}
 
 
 def gate_node(state: IngestionState) -> dict:
@@ -93,6 +104,7 @@ def gate_node(state: IngestionState) -> dict:
         normalization=state["normalization"],
         critique=state["critique"],
         revision_count=state["revision_count"],
+        revision_errors=state.get("revision_errors", []),
     )
     logger.info("[gate] %s", result.status.name)
     return {"result": result}

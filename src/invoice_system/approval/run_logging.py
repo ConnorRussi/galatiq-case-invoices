@@ -22,3 +22,10 @@ class ApprovalRunLogger:
 
     def save_result(self, result: ApprovalResult) -> None:
         write_artifact(self.context.run_dir, "approval_result.json", result)
+
+    def save_error(self, error: Exception) -> None:
+        write_artifact(
+            self.context.run_dir,
+            "approval_error.json",
+            {"error_type": type(error).__name__, "message": str(error)},
+        )

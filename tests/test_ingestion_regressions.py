@@ -5,7 +5,8 @@ from pathlib import Path
 import pytest
 
 from invoice_system.ingestion import critic
-from invoice_system.ingestion.graph import _find_critique_instability
+from invoice_system.ingestion import normalizer
+from invoice_system.ingestion.graph import _find_critique_instability, revise_node
 from invoice_system.ingestion.evaluation import (
     SCALAR_FIELDS, _common_fields_section, _evidence_section, _line_items_section,
 )
@@ -14,6 +15,7 @@ from invoice_system.ingestion.models import (
     CritiqueResult, IngestionResult, IngestionStatus, NormalizationResult,
     NormalizedInvoice, SourceChunk, SourceDocument,
 )
+from invoice_system.agent_runtime import StructuredOutputError
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -64,23 +66,108 @@ def test_real_value_and_evidence_corrections_survive(monkeypatch):
     ]
     monkeypatch.setattr(critic, 'invoke_structured', lambda **kw: kw['output_model'].model_validate({'issues': changes}))
     review = critic.critique(source('Quantity: -6'), candidate)
-    assert len(review.issues) == 2
+    assert len(review.issues) == 1
     assert review.issues[0].proposed_value == -6
     assert candidate.invoice.items[0].quantity == Decimal('-5')
 
 
-def test_deterministic_critic_checks_blank_fields_and_nested_evidence():
+def test_critic_sanitizes_blank_and_schema_invalid_proposals(monkeypatch):
+    candidate = NormalizationResult(invoice={
+        'vendor': 'Wrong vendor',
+        'items': [{'line_amount': '3500'}],
+    }, evidence=[])
+    changes = [
+        {'issue_type': 'incorrect_value', 'field_path': 'vendor',
+         'message': 'The source vendor is blank.', 'proposed_value': ''},
+        {'issue_type': 'incorrect_value', 'field_path': 'items[0].line_amount',
+         'message': 'Correct the OCR value.', 'proposed_value': '3500.O0'},
+    ]
+    monkeypatch.setattr(critic, 'invoke_structured', lambda **kw: kw['output_model'].model_validate({'issues': changes}))
+
+    review = critic.critique(source('Vendor: ""\nAmount: $3,500.O0'), candidate)
+
+    assert len(review.issues) == 1
+    assert review.issues[0].field_path == 'vendor'
+    assert review.issues[0].proposed_value is None
+
+
+def test_critic_rejects_evidence_correction_targeting_invoice_field(monkeypatch):
+    candidate = NormalizationResult(invoice={'invoice_date': '2026-01-26'}, evidence=[
+        {'field_path': 'invoice_date', 'source_chunk_ids': ['text_1'], 'source_text': 'DATE: 26-Jan-2O26'},
+    ])
+    monkeypatch.setattr(
+        critic,
+        'invoke_structured',
+        lambda **kw: kw['output_model'].model_validate({'issues': [{
+            'issue_type': 'evidence_problem', 'field_path': 'invoice_date',
+            'message': 'Evidence needs correction.', 'proposed_value': '26-Jan-2O26',
+        }]}),
+    )
+
+    assert critic.critique(source('DATE: 26-Jan-2O26'), candidate).issues == []
+
+
+def test_normalizer_contract_handles_blank_ambiguous_amount_notes_and_embedded_po(monkeypatch):
+    source_document = source('Amt: $15,000.00\nRef PO-20260115. Deliver to dock B.')
+    candidate = NormalizationResult(invoice={
+        'vendor': '',
+        'subtotal': '15000',
+        'additional_fields': {'payment_terms': '', 'notes': 'Ref PO-20260115. Deliver to dock B.'},
+        'items': [{'additional_fields': {'note': 'Keep this note'}}],
+    }, evidence=[
+        {'field_path': 'subtotal', 'source_chunk_ids': ['text_1'], 'source_text': 'Amt: $15,000.00'},
+        {'field_path': 'additional_fields.notes', 'source_chunk_ids': ['text_1'], 'source_text': 'Ref PO-20260115. Deliver to dock B.'},
+        {'field_path': 'items[0].additional_fields.note', 'source_chunk_ids': ['text_1'], 'source_text': 'Keep this note'},
+    ])
+    monkeypatch.setattr(normalizer, 'invoke_structured', lambda **kw: candidate)
+
+    result = normalizer.normalize(source_document)
+
+    assert result.invoice.vendor is None
+    assert result.invoice.subtotal is None
+    assert result.invoice.additional_fields['amount_raw'] == '$15,000.00'
+    assert result.invoice.additional_fields['payment_terms'] is None
+    assert result.invoice.additional_fields['purchase_order'] == 'PO-20260115'
+    assert result.invoice.additional_fields['notes'] == 'Ref PO-20260115. Deliver to dock B.'
+    assert result.invoice.items[0].additional_fields == {'notes': 'Keep this note'}
+    assert {item.field_path for item in result.evidence} >= {
+        'additional_fields.amount_raw', 'additional_fields.purchase_order',
+        'items[0].additional_fields.notes',
+    }
+
+
+def test_invalid_revision_preserves_last_valid_candidate(monkeypatch):
+    previous = NormalizationResult(invoice={'invoice_total': '250'}, evidence=[])
+    review = CritiqueResult(issues=[{
+        'issue_type': 'incorrect_value', 'field_path': 'invoice_total',
+        'message': 'Use the source total.', 'proposed_value': '300',
+    }])
+    source_document = source('Total: 250')
+    monkeypatch.setattr(
+        'invoice_system.ingestion.graph.revise_normalization',
+        lambda *args: (_ for _ in ()).throw(StructuredOutputError('invalid Decimal output')),
+    )
+    update = revise_node({
+        'source_path': 'test.txt', 'source_document': source_document,
+        'normalization': previous, 'critique': review, 'revision_count': 0,
+        'critique_history': [], 'critic_instability': None,
+        'revision_errors': [], 'result': None,
+    })
+
+    assert update['normalization'] == previous
+    assert update['revision_count'] == 1
+    assert update['revision_errors'] == ['invalid Decimal output']
+
+
+def test_critic_does_not_enforce_normalization_only_conventions(monkeypatch):
     candidate = NormalizationResult(invoice={
         'due_date': None,
         'additional_fields': {'due_date_raw': 'yesterday', 'payment_terms': ''},
     }, evidence=[
         {'field_path': 'due_date_raw', 'source_chunk_ids': ['text_1'], 'source_text': 'Due: yesterday'},
     ])
-    issues = critic._deterministic_policy_issues(candidate)
-    assert {(issue.field_path, issue.proposed_value) for issue in issues} == {
-        ('additional_fields.payment_terms', None),
-        ('evidence[0].field_path', 'additional_fields.due_date_raw'),
-    }
+    monkeypatch.setattr(critic, 'invoke_structured', lambda **kw: kw['output_model']())
+    assert critic.critique(source('Due: yesterday\nPayment terms: '), candidate).issues == []
 
 
 def test_critic_revision_reversal_is_detected():

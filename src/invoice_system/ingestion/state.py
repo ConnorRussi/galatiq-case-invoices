@@ -11,4 +11,5 @@ class IngestionState(TypedDict):
     revision_count: int
     critique_history: list[CritiqueResult]
     critic_instability: str | None
+    revision_errors: list[str]
     result: IngestionResult | None

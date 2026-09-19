@@ -17,6 +17,7 @@ from .models import (
     DatabaseResult,
     DatabaseStatus,
     DatabaseValidationResult,
+    ReconciliationResult,
     ValidationIssue,
 )
 
@@ -113,7 +114,7 @@ class _DatabaseLookupItem:
 
 def _items_from_ingestion(
     ingestion: IngestionResult,
-    reconciliation_result: object | None = None,
+    reconciliation_result: ReconciliationResult | None = None,
 ) -> list[_DatabaseLookupItem]:
     if ingestion.normalization is None:
         raise ValueError("Database validation requires an ingestion normalization")
@@ -166,9 +167,9 @@ def _apply_lookups(
         if not lookup.product_found:
             continue
         sufficient = (
-            result.requested_quantity is None
-            or lookup.available_stock is None
-            or result.requested_quantity <= lookup.available_stock
+            None
+            if result.requested_quantity is None or lookup.available_stock is None
+            else result.requested_quantity <= lookup.available_stock
         )
         results[index] = result.model_copy(
             update={
@@ -209,12 +210,16 @@ def resolve_inventory(
     max_rounds: int = MAX_PRODUCT_LOOKUP_ROUNDS,
     retry_proposer: RetryProposer | None = None,
     revision_feedback: str | None = None,
-    reconciliation_result: object | None = None,
+    reconciliation_result: ReconciliationResult | None = None,
 ) -> DatabaseValidationResult:
     """Resolve invoice products using bulk rounds and preserve lookup history."""
 
     if max_rounds < 1:
         raise ValueError("max_rounds must be at least 1")
+    if max_rounds > MAX_PRODUCT_LOOKUP_ROUNDS:
+        raise ValueError(
+            f"max_rounds cannot exceed the configured limit of {MAX_PRODUCT_LOOKUP_ROUNDS}"
+        )
     results = _initial_results(_items_from_ingestion(ingestion, reconciliation_result))
     proposer = retry_proposer or (
         lambda unresolved: _default_retry_proposer(
@@ -247,6 +252,15 @@ def resolve_inventory(
                     field="requested_name",
                     message=f"No inventory record was found for {result.requested_name!r}.",
                     evidence=result.attempted_names,
+                )
+            )
+        elif result.requested_quantity is None:
+            issues.append(
+                ValidationIssue(
+                    code="MISSING_QUANTITY",
+                    field="requested_quantity",
+                    message="Inventory sufficiency cannot be established without a requested quantity.",
+                    evidence=[result.matched_item or result.requested_name],
                 )
             )
         elif result.inventory_sufficient is False:

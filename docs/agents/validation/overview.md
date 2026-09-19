@@ -47,7 +47,9 @@ trimming only. The specialist may deliberately request meaning-preserving
 variations for unresolved products, using at most three lookup rounds, and
 `DatabaseResult.attempted_names` preserves the complete lookup history.
 Database receives Reconciliation's consolidated items, so quantity and source
-line mapping are checked once per consolidated product. `database_runner.py`
+line mapping are checked once per consolidated product. An unknown requested
+quantity remains unknown and produces `MISSING_QUANTITY` rather than passing
+inventory sufficiency. `database_runner.py`
 remains the reusable critiqued execution boundary; the main graph uses the same
 specialist and shared critic in the growing Semantic -> Reconciliation ->
 Database flow. Semantic or Reconciliation DENY short-circuits Database.

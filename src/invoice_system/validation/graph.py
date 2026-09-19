@@ -94,6 +94,7 @@ def database_node(state: ValidationState) -> dict:
         ingestion,
         reconciliation_result=state.get("reconciliation_result"),
         revision_feedback=state.get("revision_feedback"),
+        **({"db_path": state["database_path"]} if state.get("database_path") is not None else {}),
     )
     logger.info("[database] Proposed %s with %s issue(s)", result.status.value, len(result.issues))
     return {

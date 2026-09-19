@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from ..ingestion.run_logging import RunContext, make_evaluation_id, now_iso, write_artifact
-from .models import ApprovalRequest, ApprovalResult
+from .models import ApprovalRequest, ApprovalResult, upstream_status_value
 from .runner import run_approval
 
 
@@ -122,24 +122,12 @@ def _evaluate_case(case_path: Path, evaluation_dir: Path) -> ApprovalEval:
 
 
 def _require_upstream_pass(request: ApprovalRequest) -> None:
-    validation_status = _status_value(request.validation_result)
-    reconciliation_status = _status_value(request.reconciliation_result)
+    validation_status = upstream_status_value(request.validation_result)
+    reconciliation_status = upstream_status_value(request.reconciliation_result)
     if validation_status != "VALID":
         raise ValueError(f"approval case requires validation status VALID, got {validation_status!r}")
     if reconciliation_status != "PASS":
         raise ValueError(f"approval case requires reconciliation status PASS, got {reconciliation_status!r}")
-
-
-def _status_value(value: Any) -> str | None:
-    if value is None:
-        return None
-    if hasattr(value, "status"):
-        value = value.status
-    if isinstance(value, dict):
-        value = value.get("status")
-    if hasattr(value, "value"):
-        value = value.value
-    return str(value).upper() if value is not None else None
 
 
 def _score_result(result: ApprovalResult, expected: dict[str, Any]) -> list[EvalSection]:

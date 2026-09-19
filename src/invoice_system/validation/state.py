@@ -1,5 +1,6 @@
 """LangGraph state for the semantic validation phase."""
 
+from pathlib import Path
 from typing import TypedDict
 
 from invoice_system.ingestion.models import IngestionResult
@@ -37,3 +38,4 @@ class ValidationState(TypedDict, total=False):
     database_critic_revision_exhausted: bool
     revision_feedback: str | None
     final_result: ValidationResult | None
+    database_path: str | Path | None

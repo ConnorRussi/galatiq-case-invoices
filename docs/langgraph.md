@@ -50,13 +50,15 @@ short-circuits this prototype before any future downstream stages.
 
 Validation state is declared in
 [`validation/state.py`](../src/invoice_system/validation/state.py). It retains a
-deep snapshot of the original `IngestionResult`, semantic and reconciliation
-results, both critic records, per-stage revision feedback/count, current stage,
-and final result. The generic critic value is internal routing state only; the
-public `ValidationResult` exposes stage-specific critic records. The validation
-graph does not mutate the ingestion invoice. A
+deep snapshot of the original `IngestionResult`, semantic, reconciliation, and
+database results, three stage-specific critic records, per-stage revision
+feedback/count, current stage, database path, and final result. The generic
+critic value is internal routing state only; the public `ValidationResult`
+exposes stage-specific critic records. The validation graph does not mutate the
+ingestion invoice. A
 critic-confirmed Semantic DENY never reaches Reconciliation. A critic-confirmed
-Reconciliation DENY never reaches Database.
+Reconciliation DENY never reaches Database. Technical failures terminate with
+`TECHNICAL_FAILURE` and cannot enter approval.
 
 The standalone approval graph is defined in
 [`approval/graph.py`](../src/invoice_system/approval/graph.py).

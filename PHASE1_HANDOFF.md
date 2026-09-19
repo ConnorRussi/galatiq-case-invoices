@@ -1,4 +1,7 @@
-# Phase 1 implementation notes
+# Phase 1 implementation notes (historical)
+
+> This document records the earlier ingestion-only checkpoint. Current behavior
+> is documented in [`docs/index.md`](docs/index.md) and its linked pages.
 
 Phase 1 is implemented and manually exercised through the TAMUS AI Chat API using
 `protected.gpt-4.1-mini`. All eight required checkpoint files completed successfully;
@@ -571,9 +574,11 @@ python main.py --invoice_path=data/invoices/invoice_1009.json
 
 All runs below exited 0 and wrote both source.json and normalized.json. These are
 observed run results, not expected-output fixtures or an automated evaluation.
-Earlier development runs remain under runs/ for inspection; use the links below
-for the reviewed outputs. All eight checkpoint outputs reference existing chunk
-IDs with invoice-relative evidence paths.
+The generated run directories from that checkpoint are not retained in the
+current repository. The original run IDs are preserved below for historical
+provenance; current artifacts are written under `logs/` and are not committed.
+All eight checkpoint outputs referenced existing chunk IDs with invoice-relative
+evidence paths.
 
 | Input | Observed result | Artifacts |
 |---|---|---|

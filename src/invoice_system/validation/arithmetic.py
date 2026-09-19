@@ -81,11 +81,12 @@ def build_arithmetic_evidence(invoice: NormalizedInvoice) -> dict[str, Any]:
     consolidated = []
     for identity, group in groups.items():
         prices = group["prices"]
+        quantity_complete = len(group["quantities"]) == len(group["source_lines"])
         consolidated.append(
             {
                 "product_name": group["product_name"],
                 "normalized_product": identity,
-                "combined_quantity": decimal_sum(group["quantities"]),
+                "combined_quantity": decimal_sum(group["quantities"]) if quantity_complete else None,
                 "source_lines": group["source_lines"],
                 "unit_prices": prices,
                 "derived_line_total": group["derived_total"] if group["quantities"] and prices else None,

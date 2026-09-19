@@ -15,7 +15,7 @@ from invoice_system.ingestion.run_logging import (
 
 from .config import MAX_CRITIC_REVISIONS
 from .graph import build_graph
-from .models import ValidationResult
+from .models import ValidationIssue, ValidationResult, ValidationStage, ValidationStatus
 
 
 ProgressCallback = Callable[[str], None]
@@ -29,6 +29,7 @@ def run_validation(
     persist_artifacts: bool = True,
     run_reconciliation: bool = False,
     run_database: bool = False,
+    database_path: str | Path | None = None,
     progress_callback: ProgressCallback | None = None,
 ) -> ValidationResult:
     """Run validation from one immutable snapshot of ingestion output.
@@ -39,6 +40,11 @@ def run_validation(
         ``run_database=True`` extends that same graph through Database.
     """
 
+    ingestion_status = getattr(ingestion.status, "value", ingestion.status)
+    if ingestion_status not in {"accept", "needs_review"}:
+        raise ValueError(
+            f"Validation requires accepted or reviewable ingestion, got {ingestion_status!r}"
+        )
     if ingestion.normalization is None:
         raise ValueError("Semantic validation requires an ingestion normalization")
 
@@ -80,13 +86,44 @@ def run_validation(
         "database_critic_revision_exhausted": False,
         "revision_feedback": None,
         "final_result": None,
+        "database_path": database_path,
     }
     final: ValidationResult | None = None
+    semantic_result = None
+    reconciliation_result = None
+    database_result = None
+    current_stage = ValidationStage.SEMANTIC
     if progress_callback is not None:
         progress_callback("semantic stage started")
-    for update in build_graph(include_reconciliation=run_reconciliation, include_database=run_database).stream(state, stream_mode="updates"):
+    for update in _stream_updates(
+        include_reconciliation=run_reconciliation,
+        include_database=run_database,
+        state=state,
+    ):
+        if "__technical_failure__" in update:
+            error = update["__technical_failure__"]
+            failure = _technical_failure_result(
+                error,
+                snapshot=snapshot,
+                stage=current_stage,
+                semantic_result=semantic_result,
+                reconciliation_result=reconciliation_result,
+                database_result=database_result,
+            )
+            if context is not None:
+                write_artifact(context.run_dir, "validation_error.json", failure)
+                append_event(
+                    context.run_dir,
+                    "validation",
+                    "technical_failure",
+                    stage=current_stage.value,
+                    error=str(error),
+                )
+            return failure
         if "semantic" in update:
             semantic = update["semantic"]["semantic_result"]
+            semantic_result = semantic
+            current_stage = ValidationStage.SEMANTIC
             version = update["semantic"].get("critic_revision_count", 0) + 1
             if context is not None:
                 write_artifact(context.run_dir, f"semantic_v{version}.json", semantic)
@@ -141,6 +178,8 @@ def run_validation(
                     progress_callback("semantic critic requested a revision")
         if "reconciliation" in update:
             reconciliation = update["reconciliation"]["reconciliation_result"]
+            reconciliation_result = reconciliation
+            current_stage = ValidationStage.RECONCILIATION
             version = update["reconciliation"].get("reconciliation_critic_revision_count", 0) + 1
             if context is not None:
                 write_artifact(context.run_dir, f"reconciliation_v{version}.json", reconciliation)
@@ -176,6 +215,8 @@ def run_validation(
                     progress_callback("reconciliation critic requested a revision")
         if "database" in update:
             database = update["database"]["database_result"]
+            database_result = database
+            current_stage = ValidationStage.DATABASE
             version = update["database"].get("database_critic_revision_count", 0) + 1
             if context is not None:
                 write_artifact(context.run_dir, f"database_v{version}.json", database)
@@ -243,5 +284,55 @@ def run_validation(
                 break
 
     if final is None:
-        raise RuntimeError("Validation graph ended without a final result")
+        failure = _technical_failure_result(
+            RuntimeError("Validation graph ended without a final result"),
+            snapshot=snapshot,
+            stage=current_stage,
+            semantic_result=semantic_result,
+            reconciliation_result=reconciliation_result,
+            database_result=database_result,
+        )
+        if context is not None:
+            write_artifact(context.run_dir, "validation_error.json", failure)
+        return failure
     return final
+
+
+def _stream_updates(*, include_reconciliation: bool, include_database: bool, state: dict):
+    """Yield graph updates while converting graph exceptions into an update."""
+
+    try:
+        yield from build_graph(
+            include_reconciliation=include_reconciliation,
+            include_database=include_database,
+        ).stream(state, stream_mode="updates")
+    except Exception as exc:
+        yield {"__technical_failure__": exc}
+
+
+def _technical_failure_result(
+    error: Exception,
+    *,
+    snapshot: IngestionResult,
+    stage: ValidationStage,
+    semantic_result,
+    reconciliation_result,
+    database_result,
+) -> ValidationResult:
+    return ValidationResult(
+        status=ValidationStatus.TECHNICAL_FAILURE,
+        reason="technical_failure",
+        denied_by=stage,
+        issues=[
+            ValidationIssue(
+                code="technical_failure",
+                field=stage.value,
+                message=str(error),
+            )
+        ],
+        semantic_result=semantic_result,
+        ingestion=snapshot,
+        reconciliation_result=reconciliation_result,
+        database_result=database_result,
+        error_message=str(error),
+    )

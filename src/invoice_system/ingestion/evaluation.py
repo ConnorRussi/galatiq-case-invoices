@@ -211,7 +211,7 @@ def _run_critic_challenges(results: list[IngestionResult]) -> list[EvalSection]:
         ("equivalent_decimal_representation", _rescale_decimals, None),
         ("wrong_value", lambda n: _set_invoice_value(n, "invoice_total", "999999"), "invoice_total"),
         ("missing_material_field", _remove_payment_terms, "payment_terms"),
-        ("canonicalized_item_name", _canonicalize_first_spaced_item_name, "item_name"),
+        ("canonicalized_item_name", _canonicalize_first_spaced_item_name, None),
         ("correct_bad_source_data", _flip_negative_quantity, "quantity"),
     ]
     sections = []

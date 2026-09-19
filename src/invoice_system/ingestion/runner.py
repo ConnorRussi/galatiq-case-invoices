@@ -40,6 +40,7 @@ def run_ingestion(
             "revision_count": 0,
             "critique_history": [],
             "critic_instability": None,
+            "revision_errors": [],
             "result": None,
         }
         for update in build_graph().stream(state, stream_mode="updates"):

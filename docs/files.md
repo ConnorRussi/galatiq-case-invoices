@@ -50,5 +50,5 @@ bytecode, local credentials, and build metadata are intentionally omitted.
 | [`evals/validation/semantic/`](../evals/validation/semantic/) | Semantic expectations, controlled fixtures, and critic cases; references ingestion goldens without changing them |
 | [`evals/validation/reconciliation/`](../evals/validation/reconciliation/) | Controlled Phase 2 fixtures, expected results, and critic cases |
 | [`evals/approval/cases/`](../evals/approval/cases/) | Trusted upstream-pass cases for approval routing and final-status evaluation |
-| [`tests/`](../tests/) | Runtime, ingestion, and policy tests |
+| [`tests/`](../tests/) | Runtime, ingestion, validation, reconciliation, database, approval, and policy tests |
 | [`inventory.sqlite`](../inventory.sqlite) | Existing case database used by Phase 3 Database validation |
