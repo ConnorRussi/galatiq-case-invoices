@@ -38,10 +38,19 @@ and emits typed models in [`validation/models.py`](../src/invoice_system/validat
 - `ValidationResult` contains `VALID` or `DENIED`, a reason, denial stage,
   issues, the semantic/critic records, and the immutable ingestion snapshot.
 
-The semantic agent treats negative quantities, relative dates, contradictory
-dates, and materially missing required information as semantic concerns. It does
-not perform inventory, database, arithmetic reconciliation, or business-policy
-validation. Validation feedback never rewrites the source or normalized invoice.
+The shared Phase 1 scope contract is defined in
+[`validation/policy.py`](../src/invoice_system/validation/policy.py) and is used
+by both the specialist and critic. Semantic validation treats negative
+quantities, relative dates, contradictory dates, invalid values, basic
+usability, and explicitly required fields as semantic concerns. The current
+contract does not universally require `invoice_total` or `amount_due`, and does
+not infer due dates from payment terms. It never compares an invoice date with
+today, the system date, or a model knowledge cutoff; only date relationships
+contained within the invoice itself are in scope. It does not perform inventory,
+database, arithmetic reconciliation, or business-policy validation. A relative
+raw date is reported as one canonical root issue on the normalized field (for
+example `due_date`), with the raw value retained as evidence. Validation
+feedback never rewrites the source or normalized invoice.
 
 ## Contract changes
 

@@ -6,28 +6,40 @@ from invoice_system.agent_runtime import invoke_structured
 from invoice_system.ingestion.models import IngestionResult
 
 from .models import CriticResult, SemanticResult, ValidationStage
+from .policy import semantic_scope_prompt
 
 
 def _critic_prompt() -> str:
-    return """You are the shared validation critic. Review the specialist's work
-for the named validation stage; do not replace the specialist or independently
-return PASS or DENY on its behalf.
+    return f"""You are the shared, scope-aware validation critic. Review the
+specialist's work for the named validation stage; do not replace the specialist
+or independently return PASS or DENY on its behalf.
 
-Check whether the specialist performed its assigned job correctly and whether
-its proposed conclusion is supported by the original ingestion output. For the
-semantic stage, check for obvious omissions such as a relative date (for example
-"yesterday"), a negative or non-numeric quantity, contradictory dates,
-unsupported invented facts, silently altered source data, and an incorrect PASS
-or DENY conclusion.
-Also reject findings outside semantic responsibility, such as inventory lookup,
-SQL/database checks, full arithmetic reconciliation, or business approval policy.
+{semantic_scope_prompt()}
 
-The original ingestion output is immutable source state. A revision may correct
-the specialist's reasoning, but neither the specialist nor critic may rewrite
-source facts. Collect concise findings and, when the specialist is wrong or
-incomplete, return REVISE with exact re-check instructions. Return AGREE only
-when the specialist's stage work and conclusion are supported. Never directly
-return a stage PASS/DENY decision.
+For a Semantic result, independently review all five dimensions:
+1. Evidence support: is every claimed issue supported by the immutable original
+   ingestion output? Reject hallucinated, altered, or unsupported facts.
+2. Stage ownership: is every issue within the Semantic scope above? A factually
+   correct arithmetic mismatch, database finding, business rule, or payment-term
+   calculation is still invalid at this stage.
+3. Invented requirements: did the specialist deny because a field is missing
+   even though the Phase 1 contract does not require it? In particular, missing
+   invoice_total or amount_due is not a Semantic denial under this contract.
+4. Root-cause quality: did the specialist report one underlying issue rather
+   than duplicate raw-format and missing-field symptoms?
+5. Conclusion: after removing unsupported, out-of-scope, and duplicate issues,
+   do the remaining Semantic issues justify PASS or DENY?
+
+The current critic contract uses AGREE or REVISE. REVISE is the structured
+equivalent of disagreement: clearly identify each unsupported, out-of-scope,
+invented-requirement, or duplicate finding and give exact re-check instructions.
+If a specialist DENY contains only reconciliation or payment-term findings,
+return REVISE and instruct it to return PASS after removing them. If a specialist
+passes an invoice with a real Semantic blocker, return REVISE. Return AGREE only
+when the stage work, root issues, and conclusion are all supported and in scope.
+
+The original ingestion output is immutable source state. Neither specialist nor
+critic may rewrite it. Never directly return a stage PASS/DENY decision.
 """
 
 

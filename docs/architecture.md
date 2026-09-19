@@ -11,7 +11,7 @@ and performs at most two targeted revisions before producing a terminal result.
 
 | Boundary | Implementation | Responsibility | Handoff |
 | --- | --- | --- | --- |
-| CLI | [`main.py`](../main.py) | Parse one invoice or evaluation mode; load `.env`; print status | `run_ingestion` or `run_evaluation` |
+| CLI | [`main.py`](../main.py) | Parse one invoice or evaluation mode; load `.env`; print status | `run_ingestion`, `run_evaluation`, or `run_semantic_evaluation` |
 | Execution | [`runner.py`](../src/invoice_system/ingestion/runner.py) | Stream updates, persist artifacts, convert exceptions | `IngestionResult` |
 | Workflow | [`graph.py`](../src/invoice_system/ingestion/graph.py) | Order stages and route critique/revision | graph state |
 | Source | [`source_reader.py`](../src/invoice_system/ingestion/source_reader.py) | Read formats without invoice semantics | `SourceDocument` |
@@ -20,6 +20,7 @@ and performs at most two targeted revisions before producing a terminal result.
 | Terminal decision | [`gate.py`](../src/invoice_system/ingestion/gate.py) | Map critique or exception to status | `IngestionResult` |
 | Observability | [`run_logging.py`](../src/invoice_system/ingestion/run_logging.py) | Write stage artifacts and events | `logs/runs/<run_id>/` |
 | Evaluation | [`evaluation.py`](../src/invoice_system/ingestion/evaluation.py) | Compare goldens and run challenges | evaluation report |
+| Semantic evaluation | [`validation/evaluation.py`](../src/invoice_system/validation/evaluation.py) | Score Semantic graph results against ingestion goldens and focused fixtures | `logs/evals/<evaluation_id>/` |
 | Semantic validation | [`validation/runner.py`](../src/invoice_system/validation/runner.py) | Review an ingestion result for semantic invoice validity | `ValidationResult` |
 | Shared validation critic | [`validation/critic.py`](../src/invoice_system/validation/critic.py) | Review specialist work and route revisions | `CriticResult` |
 

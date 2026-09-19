@@ -1,0 +1,9 @@
+{
+  "invoice_id": "invoice_1009",
+  "input": {"kind": "ingestion_golden", "path": "invoice_1009.json"},
+  "semantic": {
+    "expected_status": "DENY",
+    "expected_issues": [{"code": "negative_quantity", "field": "items[0].quantity"}],
+    "expected_denial_stage": "semantic"
+  }
+}

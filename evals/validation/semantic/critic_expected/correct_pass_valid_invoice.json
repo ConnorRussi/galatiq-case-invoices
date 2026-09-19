@@ -1,0 +1,11 @@
+{
+  "case_id": "critic_correct_pass_valid_invoice",
+  "input": {"kind": "ingestion_golden", "path": "invoice_1001.json"},
+  "supplied_semantic_result": {
+    "stage": "semantic",
+    "status": "PASS",
+    "issues": [],
+    "summary": "The invoice is semantically valid."
+  },
+  "expected_critic_decision": "AGREE"
+}

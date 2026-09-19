@@ -71,6 +71,30 @@ def test_valid_invoice_passes_and_critic_agrees(monkeypatch):
     assert original.model_dump(mode="json") == before
 
 
+def test_future_invoice_date_is_not_a_semantic_blocker(monkeypatch):
+    original = ingestion(
+        {
+            "invoice_date": date(2099, 1, 15),
+            "due_date": date(2099, 2, 15),
+            "items": [{"item_name": "Future Widget", "quantity": Decimal("2")}],
+        }
+    )
+    captured: dict[str, str] = {}
+
+    def fake_invoke(**kwargs):
+        captured["system_prompt"] = kwargs["system_prompt"]
+        return kwargs["output_model"].model_validate(
+            {"stage": "semantic", "status": "PASS", "issues": [], "summary": "Dates are internally consistent."}
+        )
+
+    monkeypatch.setattr(semantic_module, "invoke_structured", fake_invoke)
+    result = semantic_module.validate_semantics(original)
+
+    assert result.status == SemanticStatus.PASS
+    assert "future invoice date is NOT by itself a Phase 1 semantic error" in captured["system_prompt"]
+    assert "model knowledge" in captured["system_prompt"]
+
+
 def test_relative_date_is_denied_by_semantic_result(monkeypatch):
     original = ingestion({"additional_fields": {"due_date_raw": "yesterday"}})
     monkeypatch.setattr(
@@ -80,7 +104,7 @@ def test_relative_date_is_denied_by_semantic_result(monkeypatch):
             SemanticStatus.DENY,
             {
                 "code": "relative_date",
-                "field": "additional_fields.due_date_raw",
+                "field": "due_date",
                 "message": "Relative date is not a normalized invoice date.",
                 "evidence": ["yesterday"],
             },
@@ -178,6 +202,45 @@ def test_critic_revises_false_pass_for_negative_quantity(monkeypatch):
     assert result.decision == CriticDecision.REVISE
 
 
+def test_critic_agrees_with_correct_semantic_pass(monkeypatch):
+    monkeypatch.setattr(
+        critic_module,
+        "invoke_structured",
+        lambda **kwargs: kwargs["output_model"].model_validate(
+            {"decision": "AGREE", "summary": "The valid invoice is in scope."}
+        ),
+    )
+
+    result = critic_module.review_stage(
+        ingestion({"items": [{"quantity": Decimal("2")}]}),
+        "semantic",
+        semantic_result(SemanticStatus.PASS),
+    )
+
+    assert result.decision == CriticDecision.AGREE
+
+
+def test_critic_agrees_with_correct_semantic_deny(monkeypatch):
+    monkeypatch.setattr(
+        critic_module,
+        "invoke_structured",
+        lambda **kwargs: kwargs["output_model"].model_validate(
+            {"decision": "AGREE", "summary": "The negative quantity is a valid Semantic denial."}
+        ),
+    )
+
+    result = critic_module.review_stage(
+        ingestion({"items": [{"quantity": Decimal("-5")}]}),
+        "semantic",
+        semantic_result(
+            SemanticStatus.DENY,
+            {"code": "negative_quantity", "field": "items[0].quantity", "message": "Negative quantity."},
+        ),
+    )
+
+    assert result.decision == CriticDecision.AGREE
+
+
 def test_critic_revises_unsupported_false_deny(monkeypatch):
     original = ingestion({"items": [{"quantity": Decimal("5")}]})
     monkeypatch.setattr(
@@ -202,6 +265,125 @@ def test_critic_revises_unsupported_false_deny(monkeypatch):
         original,
         "semantic",
         semantic_result(SemanticStatus.DENY, {"code": "not_supported", "message": "No real issue."}),
+    )
+
+    assert result.decision == CriticDecision.REVISE
+
+
+def test_semantic_and_critic_use_the_same_scope_contract():
+    semantic_prompt = semantic_module._semantic_prompt()
+    critic_prompt = critic_module._critic_prompt()
+
+    for phrase in (
+        "invoice_total",
+        "amount_due",
+        "payment terms",
+        "line totals",
+        "Root-cause policy",
+        "DO NOT compare invoice dates against the current date",
+        "invoice_date > due_date",
+        'invoice_date > "today"',
+    ):
+        assert phrase in semantic_prompt
+        assert phrase in critic_prompt
+    assert "REVISE is the structured equivalent of disagreement" in critic_prompt.replace("\n", " ")
+
+
+def test_critic_revises_reconciliation_only_denial(monkeypatch):
+    original = ingestion({"items": [{"quantity": Decimal("2"), "unit_price": Decimal("5")} ]})
+    monkeypatch.setattr(
+        critic_module,
+        "invoke_structured",
+        lambda **kwargs: kwargs["output_model"].model_validate(
+            {
+                "decision": "REVISE",
+                "summary": "Reconciliation is outside Phase 1.",
+                "revision_instructions": "Remove the total mismatch and re-evaluate Semantic issues.",
+                "findings": [
+                    {
+                        "code": "out_of_scope_reconciliation",
+                        "field": "invoice_total",
+                        "message": "Invoice-total reconciliation belongs to a later stage.",
+                    }
+                ],
+            }
+        ),
+    )
+
+    result = critic_module.review_stage(
+        original,
+        "semantic",
+        semantic_result(
+            SemanticStatus.DENY,
+            {"code": "invoice_total_mismatch", "field": "invoice_total", "message": "Totals differ."},
+        ),
+    )
+
+    assert result.decision == CriticDecision.REVISE
+
+
+def test_critic_revises_invented_required_amount_due(monkeypatch):
+    original = ingestion({"items": [{"quantity": Decimal("2")} ]})
+    monkeypatch.setattr(
+        critic_module,
+        "invoke_structured",
+        lambda **kwargs: kwargs["output_model"].model_validate(
+            {
+                "decision": "REVISE",
+                "summary": "Amount due is not a Phase 1 requirement.",
+                "revision_instructions": "Remove the invented required-field denial and re-check the invoice.",
+                "findings": [
+                    {
+                        "code": "invented_required_field",
+                        "field": "amount_due",
+                        "message": "amount_due is not universally required by Semantic validation.",
+                    }
+                ],
+            }
+        ),
+    )
+
+    result = critic_module.review_stage(
+        original,
+        "semantic",
+        semantic_result(
+            SemanticStatus.DENY,
+            {"code": "missing_amount_due", "field": "amount_due", "message": "Required field missing."},
+        ),
+    )
+
+    assert result.decision == CriticDecision.REVISE
+
+
+def test_critic_requests_root_cause_revision_for_duplicate_symptoms(monkeypatch):
+    original = ingestion({"additional_fields": {"due_date_raw": "yesterday"}})
+    monkeypatch.setattr(
+        critic_module,
+        "invoke_structured",
+        lambda **kwargs: kwargs["output_model"].model_validate(
+            {
+                "decision": "REVISE",
+                "summary": "Report the unresolved date as one root issue.",
+                "revision_instructions": "Keep relative_date on due_date and remove missing_due_date.",
+                "findings": [
+                    {
+                        "code": "duplicate_symptom",
+                        "field": "due_date",
+                        "message": "The missing normalized date is caused by the relative raw date.",
+                    }
+                ],
+            }
+        ),
+    )
+
+    result = critic_module.review_stage(
+        original,
+        "semantic",
+        semantic_result(
+            SemanticStatus.DENY,
+            {"code": "relative_date", "field": "due_date", "message": "Relative date."},
+            {"code": "missing_due_date", "field": "due_date", "message": "Date missing."},
+        ),
     )
 
     assert result.decision == CriticDecision.REVISE

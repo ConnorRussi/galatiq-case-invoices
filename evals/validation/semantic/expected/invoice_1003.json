@@ -1,0 +1,9 @@
+{
+  "invoice_id": "invoice_1003",
+  "input": {"kind": "ingestion_golden", "path": "invoice_1003.json"},
+  "semantic": {
+    "expected_status": "DENY",
+    "expected_issues": [{"code": "relative_date", "field": "due_date"}],
+    "expected_denial_stage": "semantic"
+  }
+}

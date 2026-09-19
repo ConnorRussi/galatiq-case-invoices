@@ -7,7 +7,7 @@ bytecode, local credentials, and build metadata are intentionally omitted.
 
 | Path | Role | Connected docs |
 | --- | --- | --- |
-| [`main.py`](../main.py) | CLI for one run or `--eval-ingestion` | [architecture](architecture.md), [runtime](runtime.md) |
+| [`main.py`](../main.py) | CLI for one run, `--eval-ingestion`, or `--eval-semantic` | [architecture](architecture.md), [runtime](runtime.md) |
 | [`pyproject.toml`](../pyproject.toml) | Python metadata and optional dependencies | [runtime](runtime.md) |
 | [`.env.example`](../.env.example) | Credential-free configuration template | [runtime](runtime.md) |
 | [`README.md`](../README.md) | Existing project overview and case context | [architecture](architecture.md) |
@@ -30,6 +30,7 @@ bytecode, local credentials, and build metadata are intentionally omitted.
 | [`src/invoice_system/ingestion/run_logging.py`](../src/invoice_system/ingestion/run_logging.py) | Run IDs, events, and JSON artifacts |
 | [`src/invoice_system/ingestion/evaluation.py`](../src/invoice_system/ingestion/evaluation.py) | Golden comparison and adversarial checks |
 | [`src/invoice_system/validation/`](../src/invoice_system/validation/) | Phase 1 semantic agent, shared critic, typed state/contracts, graph, and runner |
+| [`src/invoice_system/validation/evaluation.py`](../src/invoice_system/validation/evaluation.py) | Isolated Phase 1 Semantic scoring and critic probes |
 
 ## Inputs and verification
 
@@ -37,5 +38,6 @@ bytecode, local credentials, and build metadata are intentionally omitted.
 | --- | --- |
 | [`data/invoices/`](../data/invoices/) | Mixed-format invoice fixtures |
 | [`evals/ingestion/expected/`](../evals/ingestion/expected/) | Expected normalized outputs |
+| [`evals/validation/semantic/`](../evals/validation/semantic/) | Semantic expectations, controlled fixtures, and critic cases; references ingestion goldens without changing them |
 | [`tests/`](../tests/) | Runtime, ingestion, and policy tests |
 | [`inventory.sqlite`](../inventory.sqlite) | Existing case database; not read by ingestion or Phase 1 semantic validation |

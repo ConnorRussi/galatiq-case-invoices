@@ -1,0 +1,5 @@
+{
+  "invoice_id": "invoice_1014",
+  "input": {"kind": "ingestion_golden", "path": "invoice_1014.json"},
+  "semantic": {"expected_status": "PASS", "expected_issues": [], "expected_denial_stage": null}
+}

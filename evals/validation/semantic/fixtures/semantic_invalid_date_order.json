@@ -1,0 +1,23 @@
+{
+  "status": "accept",
+  "source_path": "semantic_invalid_date_order",
+  "normalization": {
+    "invoice": {
+      "invoice_number": "INV-SEM-001",
+      "vendor": "Controlled Semantic Fixture",
+      "invoice_date": "2026-09-18",
+      "due_date": "2026-09-10",
+      "currency": "USD",
+      "items": [{"item_name": "WidgetA", "quantity": "2", "unit_price": "250.00", "line_amount": null}],
+      "subtotal": null,
+      "tax_rate": null,
+      "tax_amount": null,
+      "shipping": null,
+      "discount": null,
+      "invoice_total": "500.00",
+      "amount_due": null,
+      "additional_fields": {}
+    },
+    "evidence": []
+  }
+}

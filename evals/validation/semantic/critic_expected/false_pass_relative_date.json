@@ -1,0 +1,11 @@
+{
+  "case_id": "critic_false_pass_relative_date",
+  "input": {"kind": "ingestion_golden", "path": "invoice_1003.json"},
+  "supplied_semantic_result": {
+    "stage": "semantic",
+    "status": "PASS",
+    "issues": [],
+    "summary": "No semantic issues found."
+  },
+  "expected_critic_decision": "REVISE"
+}

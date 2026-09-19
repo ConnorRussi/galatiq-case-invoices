@@ -45,7 +45,7 @@ def run_validation(
         else:
             context = artifact_context
         write_artifact(context.run_dir, "validation_input.json", snapshot)
-        append_event(context.run_dir, "validation", "started", stage="semantic")
+        append_event(context.run_dir, "validation", "started", validation_stage="semantic")
 
     state = {
         "original_ingestion": snapshot,

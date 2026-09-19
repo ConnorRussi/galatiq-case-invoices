@@ -1,0 +1,11 @@
+{
+  "case_id": "critic_false_deny_unsupported_issue",
+  "input": {"kind": "ingestion_golden", "path": "invoice_1001.json"},
+  "supplied_semantic_result": {
+    "stage": "semantic",
+    "status": "DENY",
+    "issues": [{"code": "inventory_shortage", "field": "items[0].quantity", "message": "Inventory is insufficient."}],
+    "summary": "The invoice is denied."
+  },
+  "expected_critic_decision": "REVISE"
+}

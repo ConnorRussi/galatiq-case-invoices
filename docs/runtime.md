@@ -3,7 +3,8 @@
 ## Invocation
 
 `main.py` loads `.env`, creates a run context under `logs/runs/`, and calls
-[`run_ingestion`](../src/invoice_system/ingestion/runner.py). The runtime calls
+[`run_ingestion`](../src/invoice_system/ingestion/runner.py). Evaluation modes
+write under `logs/evals/`. The runtime calls
 the configured TAMUS-compatible `/api/chat/completions` endpoint through
 [`agent_runtime.py`](../src/invoice_system/agent_runtime.py).
 
@@ -38,6 +39,7 @@ python -m pip install -e ".[ingestion,ingestion-dev]"
 python main.py --invoice_path=data/invoices/invoice_1001.txt
 python main.py --invoice_path=data/invoices/invoice_1001.txt --validate
 python main.py --eval-ingestion
+python main.py --eval-semantic
 python -m pytest
 ```
 
@@ -45,3 +47,7 @@ python -m pytest
 the resulting `IngestionResult`. It preserves ingestion-only behavior when the
 flag is absent. Validation uses the same TAMUS provider abstraction and its
 critic revision bound is configured by `validation/config.py`.
+
+`--eval-semantic` runs the isolated Phase 1 suite. It loads ingestion goldens
+directly as structured Semantic inputs, executes the Semantic graph and critic,
+and writes per-case and summary JSON artifacts. It does not run ingestion.

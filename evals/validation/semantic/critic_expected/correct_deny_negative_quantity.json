@@ -1,0 +1,11 @@
+{
+  "case_id": "critic_correct_deny_negative_quantity",
+  "input": {"kind": "ingestion_golden", "path": "invoice_1009.json"},
+  "supplied_semantic_result": {
+    "stage": "semantic",
+    "status": "DENY",
+    "issues": [{"code": "negative_quantity", "field": "items[0].quantity", "message": "Negative quantity is invalid."}],
+    "summary": "The invoice contains a negative quantity."
+  },
+  "expected_critic_decision": "AGREE"
+}
