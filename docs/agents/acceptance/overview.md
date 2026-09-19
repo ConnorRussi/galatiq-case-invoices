@@ -1,7 +1,7 @@
 # Acceptance agent
 
-Status: approval boundary implemented in isolation; upstream integration and
-payment are not connected.
+Status: approval boundary implemented, independently evaluable, and connected to
+the human-facing end-to-end workflow. Approved results continue to mock payment.
 
 ## Intended boundary
 
@@ -10,7 +10,8 @@ The approval boundary consumes a normalized invoice plus typed upstream
 [src/invoice_system/approval/policy.md](../../../src/invoice_system/approval/policy.md),
 and returns an auditable `ApprovalResult`. The Business Rule Agent chooses
 `ACCEPT`, `REJECT`, or `VP_REVIEW`; only the latter invokes the VP Agent. A
-model suggestion does not authorize a payment side effect.
+model suggestion authorizes only the local mock payment boundary when the graph's
+terminal `ApprovalResult` is `APPROVED`.
 
 The graph is implemented by
 [approval/graph.py](../../../src/invoice_system/approval/graph.py), executed

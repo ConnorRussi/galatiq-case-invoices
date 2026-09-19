@@ -12,13 +12,14 @@ before changing code.
 CLI (main.py)
   -> ingestion runner -> IngestionResult
   -> validation runner (Semantic -> Reconciliation -> Database) -> ValidationResult
-  -> standalone approval runner -> ApprovalResult
-  -> stage-specific run artifacts
+  -> approval runner (Business Rule -> optional VP) -> ApprovalResult
+  -> local mock payment -> PaymentResult
+  -> WorkflowResult + shared run artifacts
 ```
 
-The implemented boundaries include evidence-preserving ingestion, the
-Validation Agent pipeline, and an isolated Approval Agent boundary. Approval is
-not yet wired into the validation runner, and payment remains out of scope.
+The implemented boundaries include evidence-preserving ingestion, full
+validation, approval, and local mock payment. The normal CLI wires them together
+with fail-closed routing; isolated stage evaluations remain available.
 
 ## Start here
 
@@ -38,7 +39,8 @@ tools, policies, and acceptance checks can grow without making this hub a
 single long document.
 
 - [Validation agent](agents/validation/overview.md) — Semantic, Reconciliation, and Database stages; business rules are planned.
-- [Acceptance agent](agents/acceptance/overview.md) — isolated approval decision boundary and evaluation.
+- [Acceptance agent](agents/acceptance/overview.md) — approval decision boundary, workflow handoff, and isolated evaluation.
+- [Payment](payment.md) — local payment simulation, contracts, and failure behavior.
 - [Agent documentation maintenance](agent-maintenance.md) — page template and checklist.
 
 ## Graph vocabulary

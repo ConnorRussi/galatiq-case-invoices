@@ -18,6 +18,7 @@ bytecode, local credentials, and build metadata are intentionally omitted.
 | Path | Role |
 | --- | --- |
 | [`src/invoice_system/agent_runtime.py`](../src/invoice_system/agent_runtime.py) | Shared model invocation, schema correction, retries, and tracing |
+| [`src/invoice_system/workflow.py`](../src/invoice_system/workflow.py) | End-to-end routing, human progress, shared artifacts, and terminal workflow contract |
 | [`src/invoice_system/ingestion/models.py`](../src/invoice_system/ingestion/models.py) | Source, invoice, evidence, critique, and result contracts |
 | [`src/invoice_system/ingestion/state.py`](../src/invoice_system/ingestion/state.py) | Typed LangGraph state |
 | [`src/invoice_system/ingestion/source_reader.py`](../src/invoice_system/ingestion/source_reader.py) | Format-aware source extraction |
@@ -40,6 +41,7 @@ bytecode, local credentials, and build metadata are intentionally omitted.
 | [`src/invoice_system/validation/database_runner.py`](../src/invoice_system/validation/database_runner.py) | Database specialist and shared-critic execution boundary |
 | [`src/invoice_system/approval/`](../src/invoice_system/approval/) | Business-rule and VP approval contracts, graph, runner, policy, and audit logging |
 | [`src/invoice_system/approval/evaluation.py`](../src/invoice_system/approval/evaluation.py) | Approval routing and final-bucket evaluator |
+| [`src/invoice_system/payment/`](../src/invoice_system/payment/) | Typed local mock payment boundary and audit logging |
 
 ## Inputs and verification
 

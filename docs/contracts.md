@@ -98,4 +98,17 @@ arbitrary `Any` payloads are not accepted at this boundary.
 
 `ApprovalResult` is the terminal approval contract. It records `APPROVED` or
 `REJECTED`, the decision source, both structured decisions when applicable, and
-the final reasoning. It does not perform or authorize a payment side effect.
+the final reasoning. `APPROVED` authorizes the orchestrator to enter the separate
+mock payment boundary; the approval runner itself does not perform payment.
+
+## Payment and workflow contracts
+
+`PaymentRequest` contains the approved invoice ID, vendor, positive amount, and
+optional currency. The amount is selected from `amount_due` first and falls back
+to `invoice_total`. `PaymentResult` records `SUCCESS` or `FAILED`, the attempted
+payment values, optional mock transaction ID, and reason.
+
+`WorkflowResult` is the terminal end-to-end contract. Its status is one of
+`APPROVED_AND_PAID`, `VALIDATION_DENIED`, `APPROVAL_REJECTED`, `PAYMENT_FAILED`,
+or `TECHNICAL_FAILURE`. It records where execution stopped, whether VP review was
+required, the final reason, and all completed stage results.

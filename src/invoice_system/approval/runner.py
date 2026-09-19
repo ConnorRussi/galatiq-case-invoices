@@ -1,6 +1,7 @@
 """Official execution boundary for final approval."""
 
 from pathlib import Path
+from typing import Callable
 from ..ingestion.run_logging import RunContext, make_run_id
 from .graph import build_graph
 from .models import ApprovalRequest, ApprovalResult, upstream_status_value
@@ -13,6 +14,7 @@ def run_approval(
     logs_root: Path | None = None,
     artifact_context: RunContext | None = None,
     persist_artifacts: bool = True,
+    progress_callback: Callable[[str], None] | None = None,
 ) -> ApprovalResult:
     """Run approval for an invoice that has already passed upstream gates."""
     if not isinstance(request, ApprovalRequest):
@@ -35,12 +37,21 @@ def run_approval(
                 logger.event("approval", "technical_failure", error=str(error))
                 logger.save_error(error)
             raise RuntimeError(f"Approval graph failed: {error}") from error
-        if logger is not None and "business_rule_agent" in update:
+        if "business_rule_agent" in update:
             decision = update["business_rule_agent"]["business_rule_decision"]
-            logger.event("business_rule_agent", "decision", decision=decision.decision, triggered_rules=decision.triggered_rules, reasoning=decision.reasoning, concerns=decision.concerns)
-        if logger is not None and "vp_agent" in update:
+            if logger is not None:
+                logger.event("business_rule_agent", "decision", decision=decision.decision, triggered_rules=decision.triggered_rules, reasoning=decision.reasoning, concerns=decision.concerns)
+            if progress_callback is not None:
+                progress_callback(f"[3/4] Business rule decision: {decision.decision}")
+                progress_callback(
+                    f"[3/4] VP review required: {'YES' if decision.decision == 'VP_REVIEW' else 'NO'}"
+                )
+        if "vp_agent" in update:
             decision = update["vp_agent"]["vp_decision"]
-            logger.event("vp_agent", "decision", decision=decision.decision, reasoning=decision.reasoning, addressed_concerns=decision.addressed_concerns)
+            if logger is not None:
+                logger.event("vp_agent", "decision", decision=decision.decision, reasoning=decision.reasoning, addressed_concerns=decision.addressed_concerns)
+            if progress_callback is not None:
+                progress_callback(f"[3/4] VP decision: {decision.decision}")
         if "approval_complete" in update:
             final = update["approval_complete"]["result"]
     if final is None:

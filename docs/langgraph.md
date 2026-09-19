@@ -67,6 +67,25 @@ The completion node maps direct `ACCEPT` to `APPROVED` and direct `REJECT` to
 `REJECTED`. On the VP branch, `GO` maps to `APPROVED` and `NO_GO` maps to
 `REJECTED`. VP is never invoked for direct business-rule decisions.
 
+## End-to-end routing
+
+The process-level orchestrator in [`workflow.py`](../src/invoice_system/workflow.py)
+connects the existing graphs and deterministic payment boundary:
+
+```text
+ingestion
+  -> technical failure: stop
+  -> validation
+       -> denied/technical failure: stop
+       -> approval
+            -> rejected/technical failure: stop
+            -> mock payment
+                 -> WorkflowResult
+```
+
+Payment is not a LangGraph node and has no model authority. It is a typed local
+side-effect simulation that can only be reached from `ApprovalResult.APPROVED`.
+
 ## Change rules
 
 When adding a node, document its input/output contract, route, revision or

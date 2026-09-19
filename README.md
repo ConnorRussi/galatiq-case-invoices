@@ -3,9 +3,9 @@
 ## Current implementation
 
 The application preserves invoice source content, normalizes claims with separate
-source evidence, validates Semantic/Reconciliation/Database concerns, and
-provides an isolated Business Rule/VP approval boundary. Approval is not yet
-wired into the validation runner and payment is not implemented.
+source evidence, validates Semantic/Reconciliation/Database concerns, routes valid
+invoices through Business Rule/optional VP approval, and executes a local mock
+payment only after approval. One normal CLI command runs the full workflow.
 
 Supported sources: PDF (native pdfplumber text), TXT, Markdown, CSV, JSON, XML.
 Source chunks are immutable. CSV headers and rows remain in order; JSON and XML
@@ -19,15 +19,14 @@ Install with Python 3.13 or later:
 ```bash
 python -m pip install -e ".[ingestion]"
 python main.py --invoice_path=data/invoices/invoice_1001.txt
-python main.py --invoice_path=data/invoices/invoice_1001.txt --validate
-python main.py --invoice_path=data/invoices/invoice_1001.txt --validate --database-path=inventory.sqlite
+python main.py --invoice_path=data/invoices/invoice_1001.txt --database-path=inventory.sqlite
 ```
 
-Each CLI run creates `logs/runs/<run_id>/`. After reading, `source.json` is saved before
-normalization begins. On success, `normalized.json` contains `{invoice, evidence}`
-and the CLI prints the final status and invoice JSON. Dates serialize as ISO
-dates; Decimal values serialize as strings to preserve precision. Errors return
-exit code 1 and preserve partial artifacts; they never create a fake invoice.
+Each CLI run creates `logs/runs/<run_id>/`. The CLI prints concise progress for
+ingestion, validation, approval, optional VP review, and payment. Stage artifacts
+are retained as work completes, and `workflow_result.json` records the terminal
+status, stop point, and reason. Only `APPROVED_AND_PAID` returns exit code 0.
+Dates serialize as ISO dates and Decimal values serialize as strings.
 
 Copy `.env.example` to `.env` and set `TAMUS_AI_CHAT_API_KEY` and
 `TAMUS_AI_CHAT_MODEL` to your institution's key and exact model ID. The endpoint
@@ -41,8 +40,8 @@ See [PHASE1_HANDOFF.md](PHASE1_HANDOFF.md) for exact schemas, prompt, decisions,
 and the historical Phase 1 verification record. Current architecture is in
 [`docs/index.md`](docs/index.md).
 
-The original case narrative below describes the business goal; it does not imply
-that payment or an end-to-end approval workflow is available.
+The original case narrative below is implemented as a local prototype; payment
+is simulated and has no external banking side effect.
 
 ## Background
 
@@ -57,7 +56,8 @@ Acme Corp is a PE-backed manufacturing firm losing **$2M/year** on manual invoic
 
 Build a **multi-agent system** that automates the end-to-end invoice processing workflow. The system must run as a working prototype — not just designs or slides.
 
-> **Repository status:** Ingestion, validation, and isolated approval are implemented; payment and end-to-end approval wiring remain planned.
+> **Repository status:** The human-facing CLI runs ingestion, full validation,
+> approval, optional VP review, and local mock payment end to end.
 
 ## Repository Documentation
 

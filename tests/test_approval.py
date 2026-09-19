@@ -40,6 +40,7 @@ def _request(invoice_id: str = "approval-test") -> ApprovalRequest:
 
 def test_direct_accept_finishes_in_business_rule_bucket(monkeypatch):
     calls = []
+    messages = []
 
     def fake_invoke(**kwargs):
         calls.append(kwargs["output_model"])
@@ -49,12 +50,20 @@ def test_direct_accept_finishes_in_business_rule_bucket(monkeypatch):
         )
 
     monkeypatch.setattr(agents, "invoke_structured", fake_invoke)
-    result = run_approval(_request(), persist_artifacts=False)
+    result = run_approval(
+        _request(),
+        persist_artifacts=False,
+        progress_callback=messages.append,
+    )
 
     assert result.final_status == "APPROVED"
     assert result.decision_source == "BUSINESS_RULE_AGENT"
     assert result.vp_decision is None
     assert calls == [BusinessRuleDecision]
+    assert messages == [
+        "[3/4] Business rule decision: ACCEPT",
+        "[3/4] VP review required: NO",
+    ]
 
 
 def test_approval_graph_failure_writes_error_artifact(tmp_path, monkeypatch):
@@ -69,6 +78,24 @@ def test_approval_graph_failure_writes_error_artifact(tmp_path, monkeypatch):
         run_approval(_request(), artifact_context=context)
 
     assert (context.run_dir / "approval_error.json").exists()
+
+
+def test_approval_appends_to_shared_run_without_overwriting_run_metadata(tmp_path, monkeypatch):
+    context = RunContext("shared-run", tmp_path / "run")
+    context.run_dir.mkdir()
+    (context.run_dir / "run.json").write_text('{"owner": "ingestion"}\n', encoding="utf-8")
+    monkeypatch.setattr(
+        agents,
+        "invoke_structured",
+        lambda **kwargs: BusinessRuleDecision(decision="ACCEPT", reasoning="Accept."),
+    )
+
+    result = run_approval(_request(), artifact_context=context)
+
+    assert result.final_status == "APPROVED"
+    assert json.loads((context.run_dir / "run.json").read_text()) == {"owner": "ingestion"}
+    assert (context.run_dir / "approval_context.json").exists()
+    assert (context.run_dir / "approval_result.json").exists()
 
 
 def test_direct_reject_finishes_in_business_rule_bucket_without_vp(monkeypatch):
@@ -115,6 +142,8 @@ def test_validation_denied_blocks_approval_before_either_agent(monkeypatch):
 
 
 def test_vp_go_finishes_approved_in_vp_bucket(monkeypatch):
+    messages = []
+
     def fake_invoke(**kwargs):
         if kwargs["output_model"] is BusinessRuleDecision:
             return BusinessRuleDecision(
@@ -125,12 +154,17 @@ def test_vp_go_finishes_approved_in_vp_bucket(monkeypatch):
         return VPDecision(decision="GO", reasoning="Approved after review.")
 
     monkeypatch.setattr(agents, "invoke_structured", fake_invoke)
-    result = run_approval(_request(), persist_artifacts=False)
+    result = run_approval(
+        _request(),
+        persist_artifacts=False,
+        progress_callback=messages.append,
+    )
 
     assert result.final_status == "APPROVED"
     assert result.decision_source == "VP_AGENT"
     assert result.vp_decision is not None
     assert result.vp_decision.decision == "GO"
+    assert messages[-1] == "[3/4] VP decision: GO"
 
 
 def test_vp_no_go_finishes_rejected_in_vp_bucket(monkeypatch):

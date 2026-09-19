@@ -6,14 +6,15 @@ The system reads an invoice document, preserves the extracted source as
 immutable chunks, asks a configured chat model for a structured invoice
 normalization with field evidence, critiques that result against the source,
 and performs at most two targeted revisions before validation. Validation then
-reviews Semantic, Reconciliation, and Database concerns. Approval remains an
-isolated downstream boundary until end-to-end wiring is added.
+reviews Semantic, Reconciliation, and Database concerns. Valid invoices enter
+Business Rule/optional VP approval, and approved invoices enter local mock payment.
 
 ## Runtime boundaries
 
 | Boundary | Implementation | Responsibility | Handoff |
 | --- | --- | --- | --- |
-| CLI | [`main.py`](../main.py) | Parse one invoice or evaluation mode; load `.env`; print status | `run_ingestion`, `run_evaluation`, or `run_semantic_evaluation` |
+| CLI | [`main.py`](../main.py) | Parse one invoice or evaluation mode; load `.env`; print human progress and final outcome | `run_invoice_workflow` or an isolated evaluator |
+| End-to-end workflow | [`workflow.py`](../src/invoice_system/workflow.py) | Fail-closed routing, stage handoffs, terminal result, and shared audit context | `WorkflowResult` |
 | Execution | [`runner.py`](../src/invoice_system/ingestion/runner.py) | Stream updates, persist artifacts, convert exceptions | `IngestionResult` |
 | Workflow | [`graph.py`](../src/invoice_system/ingestion/graph.py) | Order stages and route critique/revision | graph state |
 | Source | [`source_reader.py`](../src/invoice_system/ingestion/source_reader.py) | Read formats without invoice semantics | `SourceDocument` |
@@ -28,23 +29,26 @@ isolated downstream boundary until end-to-end wiring is added.
 | Database validation | [`validation/database_runner.py`](../src/invoice_system/validation/database_runner.py) | Run bounded bulk inventory lookup and shared-critic review | `DatabaseExecution` |
 | Approval | [`approval/graph.py`](../src/invoice_system/approval/graph.py), [`approval/runner.py`](../src/invoice_system/approval/runner.py) | Apply business policy and route escalations to VP review | `ApprovalResult` |
 | Approval evaluation | [`approval/evaluation.py`](../src/invoice_system/approval/evaluation.py) | Score direct decisions, VP routing, and final buckets | `logs/evals/<evaluation_id>/approval/` |
+| Payment | [`payment/runner.py`](../src/invoice_system/payment/runner.py) | Execute the local mock payment after approval and persist its result | `PaymentResult` |
 
 ## Data flow
 
 `source path -> SourceDocument -> NormalizationResult -> CritiqueResult ->
 optional revised NormalizationResult -> IngestionResult -> SemanticResult ->
 CriticResult -> ReconciliationResult -> CriticResult -> DatabaseResult ->
-CriticResult -> ValidationResult`
+CriticResult -> ValidationResult -> ApprovalResult -> PaymentResult -> WorkflowResult`
 
-The standalone approval handoff is `trusted VALID/PASS inputs ->
-ApprovalRequest -> Business Rule Agent -> optional VP Agent -> ApprovalResult`.
+The approval handoff is `trusted VALID/PASS inputs -> ApprovalRequest ->
+Business Rule Agent -> optional VP Agent -> ApprovalResult`. Only `APPROVED`
+continues to payment. Validation denial, approval rejection, and technical failure
+all stop before payment.
 
 The source is never rewritten by normalization or critique. Evidence points
 back to source chunk IDs and optional quoted source text. Financial values use
 `Decimal`; JSON-safe model serialization preserves precision.
 
-## Explicit non-goals today
+## Payment boundary
 
-The original case narrative mentions banking and payment. Approval is currently
-implemented only as an isolated, auditable decision boundary; it is not yet
-connected to the validation runner, and no payment side effect exists.
+Payment is intentionally local and simulated. It records the vendor, selected
+amount (`amount_due`, then `invoice_total`), currency, transaction ID, and outcome,
+but it does not contact a bank or external payment provider.

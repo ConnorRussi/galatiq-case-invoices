@@ -9,8 +9,10 @@ from .models import ApprovalRequest, ApprovalResult
 class ApprovalRunLogger:
     def __init__(self, context: RunContext):
         self.context = context
-        self.context.run_dir.mkdir(parents=True, exist_ok=False)
-        write_artifact(self.context.run_dir, "run.json", {"run_id": context.run_id, "started_at": now_iso()})
+        existing_run = self.context.run_dir.exists()
+        self.context.run_dir.mkdir(parents=True, exist_ok=True)
+        if not existing_run:
+            write_artifact(self.context.run_dir, "run.json", {"run_id": context.run_id, "started_at": now_iso()})
 
     def event(self, stage: str, event: str, **details: object) -> None:
         with (self.context.run_dir / "events.jsonl").open("a", encoding="utf-8") as handle:
