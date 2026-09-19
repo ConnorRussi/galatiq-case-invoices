@@ -23,6 +23,7 @@ and performs at most two targeted revisions before producing a terminal result.
 | Validation Agent evaluation | [`validation/evaluation.py`](../src/invoice_system/validation/evaluation.py) | Run trusted inputs through Semantic -> Reconciliation and compare the growing truth set | `logs/evals/<evaluation_id>/` |
 | Validation | [`validation/runner.py`](../src/invoice_system/validation/runner.py) | Run the Semantic boundary or full Semantic -> Reconciliation graph | `ValidationResult` |
 | Shared validation critic | [`validation/critic.py`](../src/invoice_system/validation/critic.py) | Review specialist work and route revisions | `CriticResult` |
+| Database validation | [`validation/database_runner.py`](../src/invoice_system/validation/database_runner.py) | Run bounded bulk inventory lookup and shared-critic review | `DatabaseExecution` |
 
 ## Data flow
 
@@ -36,9 +37,9 @@ back to source chunk IDs and optional quoted source text. Financial values use
 
 ## Explicit non-goals today
 
-The original case narrative mentions inventory validation, approval, banking,
-and payment. Database, business/acceptance, and payment agents are not
-implemented in the current package. Their documentation extension points
-live under
+The original case narrative mentions approval, banking, and payment. Business/
+acceptance and payment agents are not implemented in the current package. The
+database boundary is implemented as an isolated Python API, but is not part of
+the default CLI graph. Documentation extension points live under
 [`docs/agents/`](agents/), and new code must add a real boundary, contract,
 tests, and documentation before calling a domain implemented.

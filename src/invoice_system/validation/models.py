@@ -11,6 +11,7 @@ from invoice_system.ingestion.models import IngestionResult
 class ValidationStage(str, Enum):
     SEMANTIC = "semantic"
     RECONCILIATION = "reconciliation"
+    DATABASE = "database"
 
 
 class SemanticStatus(str, Enum):
@@ -104,6 +105,33 @@ class ReconciliationResult(BaseModel):
     calculations: list[ReconciliationCalculation] = Field(default_factory=list)
 
 
+class DatabaseStatus(str, Enum):
+    PASS = "PASS"
+    DENY = "DENY"
+
+
+class DatabaseResult(BaseModel):
+    """Auditable inventory outcome for one requested product."""
+
+    requested_name: str = Field(min_length=1)
+    attempted_names: list[str] = Field(min_length=1)
+    matched_item: str | None = None
+    requested_quantity: Decimal | None = None
+    available_stock: int | None = None
+    product_found: bool
+    inventory_sufficient: bool | None = None
+
+
+class DatabaseValidationResult(BaseModel):
+    """Structured result for the inventory/database validation stage."""
+
+    stage: ValidationStage = ValidationStage.DATABASE
+    status: DatabaseStatus
+    issues: list[ValidationIssue] = Field(default_factory=list)
+    summary: str = Field(min_length=1)
+    results: list[DatabaseResult] = Field(default_factory=list)
+
+
 class CriticResult(BaseModel):
     decision: CriticDecision
     findings: list[ValidationIssue] = Field(default_factory=list)
@@ -122,3 +150,5 @@ class ValidationResult(BaseModel):
     semantic_critic_result: CriticResult | None = None
     reconciliation_result: ReconciliationResult | None = None
     reconciliation_critic_result: CriticResult | None = None
+    database_result: DatabaseValidationResult | None = None
+    database_critic_result: CriticResult | None = None

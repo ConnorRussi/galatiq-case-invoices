@@ -37,5 +37,14 @@ critic-confirmed Semantic DENY never runs Phase 2.
 
 `reconciliation.py` owns line arithmetic, subtotal/tax/fee/total relationships
 when present, and consolidation source-line coverage. `arithmetic.py` provides
-observable Decimal evidence; it does not replace the LLM specialist. Database,
-inventory, business acceptance, and payment remain future stages.
+observable Decimal evidence; it does not replace the LLM specialist.
+
+## Database boundary
+
+`database.py` and `database_tool.py` provide an isolated inventory validation
+boundary. The SQL tool performs exact bulk lookups after outer-whitespace
+trimming only. The specialist may deliberately request meaning-preserving
+variations for unresolved products, using at most three lookup rounds, and
+`DatabaseResult.attempted_names` preserves the complete lookup history.
+`database_runner.py` applies the shared critic to the database result. This
+boundary is callable from Python and is not yet part of the default CLI graph.

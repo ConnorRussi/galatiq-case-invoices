@@ -29,12 +29,15 @@ bytecode, local credentials, and build metadata are intentionally omitted.
 | [`src/invoice_system/ingestion/runner.py`](../src/invoice_system/ingestion/runner.py) | Official execution and persistence boundary |
 | [`src/invoice_system/ingestion/run_logging.py`](../src/invoice_system/ingestion/run_logging.py) | Run IDs, events, and JSON artifacts |
 | [`src/invoice_system/ingestion/evaluation.py`](../src/invoice_system/ingestion/evaluation.py) | Golden comparison and adversarial checks |
-| [`src/invoice_system/validation/`](../src/invoice_system/validation/) | Phase 1 semantic agent, shared critic, typed state/contracts, graph, and runner |
+| [`src/invoice_system/validation/`](../src/invoice_system/validation/) | Semantic, Reconciliation, and isolated Database agents, shared critic, typed contracts, graphs, and runners |
 | [`src/invoice_system/validation/evaluation.py`](../src/invoice_system/validation/evaluation.py) | End-to-end Validation Agent scoring, routing checks, artifacts, and terminal output |
 | [`src/invoice_system/validation/reconciliation.py`](../src/invoice_system/validation/reconciliation.py) | Phase 2 specialist and scope contract |
 | [`src/invoice_system/validation/arithmetic.py`](../src/invoice_system/validation/arithmetic.py) | Decimal-safe arithmetic and consolidation evidence |
 | [`src/invoice_system/validation/reconciliation_evaluation.py`](../src/invoice_system/validation/reconciliation_evaluation.py) | Reusable structured Phase 2 scoring helper used by the Validation Agent evaluator |
 | [`src/invoice_system/validation/reconciliation_runner.py`](../src/invoice_system/validation/reconciliation_runner.py) | Phase 2 execution boundary used by validation runtime/tests |
+| [`src/invoice_system/validation/database.py`](../src/invoice_system/validation/database.py) | Agent-directed, bounded inventory lookup rounds and database scope prompt |
+| [`src/invoice_system/validation/database_tool.py`](../src/invoice_system/validation/database_tool.py) | Exact read-only bulk SQLite lookup boundary |
+| [`src/invoice_system/validation/database_runner.py`](../src/invoice_system/validation/database_runner.py) | Database specialist and shared-critic execution boundary |
 
 ## Inputs and verification
 
@@ -45,4 +48,4 @@ bytecode, local credentials, and build metadata are intentionally omitted.
 | [`evals/validation/semantic/`](../evals/validation/semantic/) | Semantic expectations, controlled fixtures, and critic cases; references ingestion goldens without changing them |
 | [`evals/validation/reconciliation/`](../evals/validation/reconciliation/) | Controlled Phase 2 fixtures, expected results, and critic cases |
 | [`tests/`](../tests/) | Runtime, ingestion, and policy tests |
-| [`inventory.sqlite`](../inventory.sqlite) | Existing case database; not read by ingestion or Phase 1 semantic validation |
+| [`inventory.sqlite`](../inventory.sqlite) | Existing case database used by the isolated Database validation API |
