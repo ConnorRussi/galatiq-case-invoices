@@ -29,8 +29,10 @@ Artifacts are written as stages complete, preserving partial evidence for failed
 runs. `run_logging.py` serializes models, dates, decimals, and paths into JSON.
 When validation is requested, the same run directory also contains
 `validation_input.json`, versioned `semantic_vN.json` and
-`semantic_critic_vN.json` artifacts, and `validation_result.json`; validation
-events use the existing `events.jsonl` schema.
+`semantic_critic_vN.json` artifacts, and, for full validation,
+`reconciliation_vN.json`, `reconciliation_critic_vN.json`, and
+`validation_result.json`; validation events use the existing `events.jsonl`
+schema.
 
 ## Commands
 
@@ -39,15 +41,19 @@ python -m pip install -e ".[ingestion,ingestion-dev]"
 python main.py --invoice_path=data/invoices/invoice_1001.txt
 python main.py --invoice_path=data/invoices/invoice_1001.txt --validate
 python main.py --eval-ingestion
-python main.py --eval-semantic
+python main.py --eval-validation
 python -m pytest
 ```
 
-`--validate` runs ingestion first and then Phase 1 semantic validation against
-the resulting `IngestionResult`. It preserves ingestion-only behavior when the
-flag is absent. Validation uses the same TAMUS provider abstraction and its
-critic revision bound is configured by `validation/config.py`.
+`--validate` runs ingestion first and then the Semantic -> Reconciliation
+validation graph against the resulting `IngestionResult`. A confirmed Semantic
+DENY short-circuits Reconciliation. Validation uses the same TAMUS provider
+abstraction and its critic revision bound is configured by `validation/config.py`.
 
-`--eval-semantic` runs the isolated Phase 1 suite. It loads ingestion goldens
-directly as structured Semantic inputs, executes the Semantic graph and critic,
-and writes per-case and summary JSON artifacts. It does not run ingestion.
+`--eval-validation` runs the one growing Validation Agent evaluation. It loads
+trusted normalized goldens and controlled structured fixtures, executes the
+Semantic stage first, stops at a confirmed Semantic DENY, and routes confirmed
+Semantic PASS cases through Reconciliation. It does not rerun ingestion. The
+older `--eval-semantic` and `--eval-reconciliation` flags remain compatibility
+aliases for this same end-to-end evaluation; they are not separate stage
+evaluators.

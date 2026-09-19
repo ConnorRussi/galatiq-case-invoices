@@ -20,15 +20,15 @@ and performs at most two targeted revisions before producing a terminal result.
 | Terminal decision | [`gate.py`](../src/invoice_system/ingestion/gate.py) | Map critique or exception to status | `IngestionResult` |
 | Observability | [`run_logging.py`](../src/invoice_system/ingestion/run_logging.py) | Write stage artifacts and events | `logs/runs/<run_id>/` |
 | Evaluation | [`evaluation.py`](../src/invoice_system/ingestion/evaluation.py) | Compare goldens and run challenges | evaluation report |
-| Semantic evaluation | [`validation/evaluation.py`](../src/invoice_system/validation/evaluation.py) | Score Semantic graph results against ingestion goldens and focused fixtures | `logs/evals/<evaluation_id>/` |
-| Semantic validation | [`validation/runner.py`](../src/invoice_system/validation/runner.py) | Review an ingestion result for semantic invoice validity | `ValidationResult` |
+| Validation Agent evaluation | [`validation/evaluation.py`](../src/invoice_system/validation/evaluation.py) | Run trusted inputs through Semantic -> Reconciliation and compare the growing truth set | `logs/evals/<evaluation_id>/` |
+| Validation | [`validation/runner.py`](../src/invoice_system/validation/runner.py) | Run the Semantic boundary or full Semantic -> Reconciliation graph | `ValidationResult` |
 | Shared validation critic | [`validation/critic.py`](../src/invoice_system/validation/critic.py) | Review specialist work and route revisions | `CriticResult` |
 
 ## Data flow
 
 `source path -> SourceDocument -> NormalizationResult -> CritiqueResult ->
 optional revised NormalizationResult -> IngestionResult -> SemanticResult ->
-CriticResult -> ValidationResult`
+CriticResult -> ReconciliationResult -> CriticResult -> ValidationResult`
 
 The source is never rewritten by normalization or critique. Evidence points
 back to source chunk IDs and optional quoted source text. Financial values use
@@ -37,8 +37,8 @@ back to source chunk IDs and optional quoted source text. Financial values use
 ## Explicit non-goals today
 
 The original case narrative mentions inventory validation, approval, banking,
-and payment. Reconciliation, database, business/acceptance, and payment agents
-are not implemented in the current package. Their documentation extension points
+and payment. Database, business/acceptance, and payment agents are not
+implemented in the current package. Their documentation extension points
 live under
 [`docs/agents/`](agents/), and new code must add a real boundary, contract,
 tests, and documentation before calling a domain implemented.

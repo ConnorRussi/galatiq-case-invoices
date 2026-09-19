@@ -16,30 +16,47 @@ from invoice_system.ingestion.models import IngestionStatus
 from invoice_system.ingestion.run_logging import create_normal_run_context
 from invoice_system.ingestion.runner import run_ingestion
 from invoice_system.validation import ValidationStatus, run_validation
-from invoice_system.validation.evaluation import run_semantic_evaluation
+from invoice_system.validation.evaluation import run_validation_evaluation
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run invoice ingestion or evaluation")
     parser.add_argument("--invoice_path")
     parser.add_argument("--eval-ingestion", action="store_true")
-    parser.add_argument("--eval-semantic", action="store_true")
+    parser.add_argument(
+        "--eval-validation",
+        action="store_true",
+        help="Run the end-to-end Validation Agent evaluation",
+    )
+    parser.add_argument(
+        "--eval-semantic",
+        action="store_true",
+        help="Compatibility alias for --eval-validation",
+    )
+    parser.add_argument(
+        "--eval-reconciliation",
+        action="store_true",
+        help="Compatibility alias for --eval-validation",
+    )
     parser.add_argument(
         "--validate",
         action="store_true",
-        help="Run Phase 1 semantic validation after ingestion",
+        help="Run Semantic and Reconciliation validation after ingestion",
     )
     args = parser.parse_args()
-    if args.eval_ingestion and args.eval_semantic:
+    validation_eval_flags = (args.eval_validation, args.eval_semantic, args.eval_reconciliation)
+    if args.eval_ingestion and any(validation_eval_flags):
         parser.error("choose only one evaluation mode")
+    if sum(validation_eval_flags) > 1:
+        parser.error("choose only one validation evaluation mode")
     if args.eval_ingestion:
         load_dotenv(ROOT / ".env")
         logging.basicConfig(level=logging.INFO, format="%(message)s")
         return 0 if run_evaluation(ROOT) else 1
-    if args.eval_semantic:
+    if any(validation_eval_flags):
         load_dotenv(ROOT / ".env")
         logging.basicConfig(level=logging.INFO, format="%(message)s")
-        return 0 if run_semantic_evaluation(ROOT) else 1
+        return 0 if run_validation_evaluation(ROOT) else 1
     if not args.invoice_path:
         parser.error("--invoice_path is required unless an evaluation mode is used")
     load_dotenv(ROOT / ".env")
@@ -55,7 +72,7 @@ def main() -> int:
     if result.status == IngestionStatus.TECHNICAL_FAILURE:
         return 1
     if args.validate:
-        validation = run_validation(result, artifact_context=context)
+        validation = run_validation(result, artifact_context=context, run_reconciliation=True)
         print(f"Validation status: {validation.status.value}")
         print(validation.model_dump_json(indent=2))
         return 1 if validation.status == ValidationStatus.DENIED else 0

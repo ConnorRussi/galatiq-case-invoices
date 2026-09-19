@@ -15,9 +15,9 @@ CLI (main.py)
   -> shared run artifacts (ingestion/run_logging.py)
 ```
 
-The implemented boundary includes evidence-preserving ingestion and Phase 1
-semantic validation. Inventory/database reconciliation, approval, and payment
-are future domains, not current graph nodes.
+The implemented boundary includes evidence-preserving ingestion, Phase 1
+semantic validation, and Phase 2 reconciliation validation. Inventory/database
+lookup, approval, and payment are future domains, not current graph nodes.
 
 ## Start here
 
@@ -36,7 +36,7 @@ Each later workflow domain gets its own folder so its purpose, contracts,
 tools, policies, and acceptance checks can grow without making this hub a
 single long document.
 
-- [Validation agent](agents/validation/overview.md) — Phase 1 semantic boundary; later inventory/business rules are planned.
+- [Validation agent](agents/validation/overview.md) — Phase 1 Semantic and Phase 2 Reconciliation boundaries; later inventory/business rules are planned.
 - [Acceptance agent](agents/acceptance/overview.md) — planned final decision boundary.
 - [Agent documentation maintenance](agent-maintenance.md) — page template and checklist.
 

@@ -1,6 +1,7 @@
 """Typed contracts shared by validation stages."""
 
 from enum import Enum
+from decimal import Decimal
 
 from pydantic import BaseModel, Field
 
@@ -9,6 +10,7 @@ from invoice_system.ingestion.models import IngestionResult
 
 class ValidationStage(str, Enum):
     SEMANTIC = "semantic"
+    RECONCILIATION = "reconciliation"
 
 
 class SemanticStatus(str, Enum):
@@ -48,6 +50,41 @@ class SemanticResult(BaseModel):
     summary: str = Field(min_length=1)
 
 
+class ReconciliationStatus(str, Enum):
+    PASS = "PASS"
+    DENY = "DENY"
+
+
+class ConsolidatedItem(BaseModel):
+    """A deterministic, auditable product consolidation proposed by Phase 2."""
+
+    product_name: str = Field(min_length=1)
+    normalized_product: str = Field(min_length=1)
+    combined_quantity: Decimal
+    source_lines: list[int] = Field(min_length=1)
+    unit_price: Decimal | None = None
+    derived_line_total: Decimal | None = None
+
+
+class ReconciliationCalculation(BaseModel):
+    """One observable arithmetic check; explanations remain intentionally absent."""
+
+    code: str = Field(min_length=1)
+    field: str | None = None
+    calculated: Decimal | None = None
+    declared: Decimal | None = None
+    source_lines: list[int] = Field(default_factory=list)
+
+
+class ReconciliationResult(BaseModel):
+    stage: ValidationStage = ValidationStage.RECONCILIATION
+    status: ReconciliationStatus
+    issues: list[ValidationIssue] = Field(default_factory=list)
+    summary: str = Field(min_length=1)
+    consolidated_items: list[ConsolidatedItem] = Field(default_factory=list)
+    calculations: list[ReconciliationCalculation] = Field(default_factory=list)
+
+
 class CriticResult(BaseModel):
     decision: CriticDecision
     findings: list[ValidationIssue] = Field(default_factory=list)
@@ -63,3 +100,6 @@ class ValidationResult(BaseModel):
     semantic_result: SemanticResult
     critic_result: CriticResult
     ingestion: IngestionResult
+    semantic_critic_result: CriticResult | None = None
+    reconciliation_result: ReconciliationResult | None = None
+    reconciliation_critic_result: CriticResult | None = None

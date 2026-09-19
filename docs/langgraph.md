@@ -7,7 +7,7 @@ The ingestion workflow is defined in
 START -> read_source -> normalize -> critic -> revise (max 2) -> gate -> END
 ```
 
-Phase 1 validation is a separate graph in
+Validation is a graph in
 [`src/invoice_system/validation/graph.py`](../src/invoice_system/validation/graph.py):
 
 ```text
@@ -16,6 +16,12 @@ START -> semantic -> semantic_critic
                     ├─ confirmed DENY -> finalize_denied -> END
                     └─ confirmed PASS -> finalize_valid_for_phase_1 -> END
 ```
+
+With `include_reconciliation=True`, a critic-confirmed Semantic PASS routes to
+`reconciliation -> reconciliation_critic`; a confirmed Phase 2 DENY finalizes
+the validation as denied, while a confirmed PASS finalizes as valid. The
+default runner mode remains the isolated Phase 1 graph so the Semantic
+evaluator does not execute later-stage work.
 
 The critic disagreement limit is `MAX_CRITIC_REVISIONS = 2`. A further
 unresolved `REVISE` routes to `finalize_unresolved`, which fails closed as
@@ -33,19 +39,17 @@ short-circuits this prototype before any future downstream stages.
 | `gate` | all state | `result` | Builds terminal result |
 | `semantic` | immutable `IngestionResult`, revision feedback | `semantic_result` | Whole-invoice semantic specialist |
 | `semantic_critic` | ingestion snapshot, semantic result | `critic_result`, revision routing | Shared critic; never decides PASS/DENY itself |
+| `reconciliation` | immutable ingestion snapshot, revision feedback | `reconciliation_result` | Decimal-backed arithmetic and consolidation specialist |
+| `reconciliation_critic` | ingestion snapshot, reconciliation result | `critic_result`, revision routing | Shared critic; verifies Phase 2 arithmetic and scope |
 | `finalize_valid_for_phase_1` | confirmed semantic PASS | `final_result` | Phase 1 PASS endpoint |
 | `finalize_denied` / `finalize_unresolved` | confirmed DENY or exhausted revisions | `final_result` | Fail closed; unresolved reason is `unresolved_validation` |
 
-State is declared in [`state.py`](../src/invoice_system/ingestion/state.py).
-It includes the source path, optional source document, normalization, critique,
-revision count, and final result. Node functions return partial updates; the
-runner consumes graph stream updates to persist artifacts.
-
 Validation state is declared in
 [`validation/state.py`](../src/invoice_system/validation/state.py). It retains a
-deep snapshot of the original `IngestionResult`, semantic and critic results,
-revision feedback/count, current stage, and final result. The validation graph
-does not mutate the ingestion invoice.
+deep snapshot of the original `IngestionResult`, semantic and reconciliation
+results, both critic records, per-stage revision feedback/count, current stage,
+and final result. The validation graph does not mutate the ingestion invoice. A
+critic-confirmed Semantic DENY never reaches Reconciliation.
 
 ## Change rules
 

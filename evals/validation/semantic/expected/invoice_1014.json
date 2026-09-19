@@ -1,5 +1,6 @@
 {
   "invoice_id": "invoice_1014",
   "input": {"kind": "ingestion_golden", "path": "invoice_1014.json"},
-  "semantic": {"expected_status": "PASS", "expected_issues": [], "expected_denial_stage": null}
+  "semantic": {"expected_status": "PASS", "expected_issues": [], "expected_denial_stage": null},
+  "reconciliation": {"expected_status": "PASS", "expected_issue_codes": [], "expected_consolidated_items": [{"product_name": "WidgetA", "expected_quantity": "4", "expected_source_lines": [1], "expected_derived_line_total": "900.00"}, {"product_name": "WidgetB", "expected_quantity": "6", "expected_source_lines": [2], "expected_derived_line_total": "2850.00"}]}
 }

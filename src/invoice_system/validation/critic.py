@@ -5,8 +5,10 @@ import json
 from invoice_system.agent_runtime import invoke_structured
 from invoice_system.ingestion.models import IngestionResult
 
-from .models import CriticResult, SemanticResult, ValidationStage
+from .arithmetic import build_arithmetic_evidence
+from .models import CriticResult, ReconciliationResult, SemanticResult, ValidationStage
 from .policy import semantic_scope_prompt
+from .reconciliation import reconciliation_scope_prompt
 
 
 def _critic_prompt() -> str:
@@ -15,6 +17,8 @@ specialist's work for the named validation stage; do not replace the specialist
 or independently return PASS or DENY on its behalf.
 
 {semantic_scope_prompt()}
+
+{reconciliation_scope_prompt()}
 
 For a Semantic result, independently review all five dimensions:
 1. Evidence support: is every claimed issue supported by the immutable original
@@ -38,6 +42,13 @@ return REVISE and instruct it to return PASS after removing them. If a specialis
 passes an invoice with a real Semantic blocker, return REVISE. Return AGREE only
 when the stage work, root issues, and conclusion are all supported and in scope.
 
+For a Reconciliation result, independently verify every line calculation,
+subtotal/total relationship, repeated-product consolidation, source-line
+coverage, and stage boundary using the original ingestion output and the
+deterministic arithmetic evidence. A false PASS or unsupported arithmetic DENY
+requires REVISE. Do not turn inventory or business-policy observations into a
+reconciliation blocker.
+
 The original ingestion output is immutable source state. Neither specialist nor
 critic may rewrite it. Never directly return a stage PASS/DENY decision.
 """
@@ -46,7 +57,7 @@ critic may rewrite it. Never directly return a stage PASS/DENY decision.
 def review_stage(
     original_ingestion: IngestionResult,
     current_stage: ValidationStage | str,
-    stage_result: SemanticResult,
+    stage_result: SemanticResult | ReconciliationResult,
     *,
     previous_critic: CriticResult | None = None,
     revision_count: int = 0,
@@ -59,8 +70,12 @@ def review_stage(
     """
 
     stage = ValidationStage(current_stage)
-    if stage != ValidationStage.SEMANTIC:
-        raise ValueError(f"Unsupported validation stage in Phase 1: {stage}")
+    if stage == ValidationStage.SEMANTIC and not isinstance(stage_result, SemanticResult):
+        raise ValueError("Semantic critic requires a SemanticResult")
+    if stage == ValidationStage.RECONCILIATION and not isinstance(stage_result, ReconciliationResult):
+        raise ValueError("Reconciliation critic requires a ReconciliationResult")
+    if stage_result.stage != stage:
+        raise ValueError(f"Specialist result stage {stage_result.stage} does not match {stage}")
     content = json.dumps(
         {
             "original_ingestion": original_ingestion.model_dump(mode="json"),
@@ -71,6 +86,9 @@ def review_stage(
             else None,
             "revision_count": revision_count,
             "revision_feedback": revision_feedback,
+            "arithmetic_tool_output": json.loads(json.dumps(build_arithmetic_evidence(original_ingestion.normalization.invoice), default=str))
+            if stage == ValidationStage.RECONCILIATION and original_ingestion.normalization is not None
+            else None,
             "critic_result_schema": CriticResult.model_json_schema(),
         },
         ensure_ascii=False,

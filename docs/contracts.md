@@ -58,3 +58,13 @@ Changing a field can affect model prompts, JSON artifacts, evaluator comparisons
 and tests. Update this page, prompt/policy documentation, relevant goldens, and
 regression tests together. Preserve backward-readable artifact semantics unless
 the change explicitly includes a migration plan.
+
+## Reconciliation contracts
+
+Phase 2 adds `ReconciliationResult`, `ConsolidatedItem`, and
+`ReconciliationCalculation` in [`validation/models.py`](../src/invoice_system/validation/models.py).
+The result contains a `PASS`/`DENY` status, structured issue codes and fields,
+consolidated product identity/quantity/source lines, and Decimal-safe
+calculation records. It owns invoice arithmetic and duplicate consolidation;
+inventory, database lookup, approval thresholds, and payment policy remain
+later-stage concerns.

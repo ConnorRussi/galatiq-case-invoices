@@ -1,0 +1,1 @@
+{"status":"accept","source_path":"controlled/total_mismatch.json","normalization":{"invoice":{"items":[{"item_name":"Gadget A","quantity":"10","unit_price":"10","line_amount":"100"}],"subtotal":"100","tax_amount":"10","invoice_total":"150"},"evidence":[]}}

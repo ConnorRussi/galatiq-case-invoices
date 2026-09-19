@@ -1,0 +1,1 @@
+{"invoice_id":"reconciliation_conflicting_duplicate_price","input":{"kind":"reconciliation_fixture","path":"conflicting_duplicate_price.json"},"semantic":{"expected_status":"PASS"},"reconciliation":{"expected_status":"DENY","expected_issue_codes":["CONFLICTING_DUPLICATE_PRICE"],"expected_issue_fields":["items[1].unit_price"]}}

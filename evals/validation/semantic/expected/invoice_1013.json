@@ -1,5 +1,6 @@
 {
   "invoice_id": "invoice_1013",
   "input": {"kind": "ingestion_golden", "path": "invoice_1013.json"},
-  "semantic": {"expected_status": "PASS", "expected_issues": [], "expected_denial_stage": null}
+  "semantic": {"expected_status": "PASS", "expected_issues": [], "expected_denial_stage": null},
+  "reconciliation": {"expected_status": "DENY", "expected_issue_codes": ["CONFLICTING_DUPLICATE_PRICE"], "expected_issue_fields": ["items[3].unit_price"]}
 }

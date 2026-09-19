@@ -1,0 +1,1 @@
+{"status":"accept","source_path":"controlled/later_database_failure.json","normalization":{"invoice":{"items":[{"item_name":"Gadget A","quantity":"100","unit_price":"10","line_amount":"1000"}],"subtotal":"1000","tax_amount":"0","invoice_total":"1000"},"evidence":[]}}

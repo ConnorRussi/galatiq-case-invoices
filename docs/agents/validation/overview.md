@@ -1,6 +1,6 @@
 # Validation agent
 
-Status: Phase 1 implemented. The semantic validation graph consumes an
+Status: Phase 1 and Phase 2 implemented. The validation graph consumes an
 `IngestionResult` and returns a typed `ValidationResult` without mutating the
 ingestion invoice.
 
@@ -29,10 +29,13 @@ prototype; unresolved disagreement fails closed as `DENIED` with reason
 The critic independently checks evidence support, Semantic-stage ownership,
 invented requirements, root-cause quality, and the final PASS/DENY conclusion.
 `REVISE` is the structured disagreement decision and routes the result back to
-the specialist.
+the specialist. After a critic-confirmed Semantic PASS, Phase 2 reconciliation
+checks Decimal-safe arithmetic and repeated-product consolidation. A
+critic-confirmed Semantic DENY never runs Phase 2.
 
-## Future phases
+## Reconciliation boundary
 
-Future phases will add reconciliation, database tools, and business acceptance
-after the Phase 1 PASS endpoint. Those agents and their critics are not yet
-implemented.
+`reconciliation.py` owns line arithmetic, subtotal/tax/fee/total relationships
+when present, and consolidation source-line coverage. `arithmetic.py` provides
+observable Decimal evidence; it does not replace the LLM specialist. Database,
+inventory, business acceptance, and payment remain future stages.

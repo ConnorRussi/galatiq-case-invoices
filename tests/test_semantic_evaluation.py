@@ -8,6 +8,8 @@ from invoice_system.validation import evaluation
 from invoice_system.validation.models import (
     CriticDecision,
     CriticResult,
+    ReconciliationResult,
+    ReconciliationStatus,
     SemanticResult,
     SemanticStatus,
     ValidationResult,
@@ -185,3 +187,65 @@ def test_semantic_eval_does_not_mutate_ingestion_golden(tmp_path, monkeypatch):
     assert evaluation.run_semantic_evaluation(tmp_path)
     assert expected_source.read_text(encoding="utf-8") == golden_text
     assert (ingestion_dir / expected_source.name).read_text(encoding="utf-8") == golden_text
+
+
+def test_validation_eval_routes_semantic_deny_and_pass_cases_through_one_pipeline(tmp_path, monkeypatch):
+    expected_dir = tmp_path / "evals" / "validation" / "semantic" / "expected"
+    fixture_dir = tmp_path / "evals" / "validation" / "semantic" / "fixtures"
+    expected_dir.mkdir(parents=True)
+    fixture_dir.mkdir(parents=True)
+    fixture = {
+        "status": "accept",
+        "source_path": "controlled-validation-fixture",
+        "normalization": {"invoice": {"items": [{"item_name": "Gadget A", "quantity": "5", "unit_price": "10", "line_amount": "50"}], "subtotal": "50", "invoice_total": "50"}, "evidence": []},
+    }
+    (fixture_dir / "valid.json").write_text(json.dumps(fixture), encoding="utf-8")
+    deny_fixture = dict(fixture)
+    deny_fixture["source_path"] = "controlled-semantic-deny"
+    (fixture_dir / "deny.json").write_text(json.dumps(deny_fixture), encoding="utf-8")
+    (expected_dir / "semantic_deny.json").write_text(json.dumps({
+        "invoice_id": "semantic_deny",
+        "input": {"kind": "semantic_fixture", "path": "deny.json"},
+        "semantic": {"expected_status": "DENY", "expected_issues": [{"code": "relative_date", "field": "due_date"}], "expected_denial_stage": "semantic"},
+    }), encoding="utf-8")
+    (expected_dir / "semantic_pass.json").write_text(json.dumps({
+        "invoice_id": "semantic_pass",
+        "input": {"kind": "semantic_fixture", "path": "valid.json"},
+        "semantic": {"expected_status": "PASS", "expected_issues": []},
+        "reconciliation": {"expected_status": "PASS", "expected_issue_codes": [], "expected_consolidated_items": [{"product_name": "Gadget A", "expected_quantity": "5", "expected_source_lines": [1], "expected_derived_line_total": "50"}]},
+    }), encoding="utf-8")
+
+    def fake_run_validation(ingestion, **kwargs):
+        is_deny = ingestion.source_path == "controlled-semantic-deny"
+        semantic_status = SemanticStatus.DENY if is_deny else SemanticStatus.PASS
+        semantic_issues = [{"code": "relative_date", "field": "due_date", "message": "relative"}] if semantic_status == SemanticStatus.DENY else []
+        semantic = SemanticResult(status=semantic_status, issues=semantic_issues, summary="semantic")
+        semantic_critic = CriticResult(decision=CriticDecision.AGREE, summary="semantic critic")
+        reconciliation = None if semantic_status == SemanticStatus.DENY else ReconciliationResult(
+            status=ReconciliationStatus.PASS,
+            summary="reconciliation",
+            consolidated_items=[{"product_name": "Gadget A", "normalized_product": "gadget a", "combined_quantity": "5", "source_lines": [1], "unit_price": "10", "derived_line_total": "50"}],
+        )
+        reconciliation_critic = None if reconciliation is None else CriticResult(decision=CriticDecision.AGREE, summary="reconciliation critic")
+        return ValidationResult(
+            status=ValidationStatus.DENIED if semantic_status == SemanticStatus.DENY else ValidationStatus.VALID,
+            reason="semantic_denied" if semantic_status == SemanticStatus.DENY else "reconciliation_pass",
+            denied_by=ValidationStage.SEMANTIC if semantic_status == SemanticStatus.DENY else None,
+            issues=semantic.issues if reconciliation is None else reconciliation.issues,
+            semantic_result=semantic,
+            critic_result=semantic_critic if reconciliation is None else reconciliation_critic,
+            ingestion=ingestion,
+            semantic_critic_result=semantic_critic,
+            reconciliation_result=reconciliation,
+            reconciliation_critic_result=reconciliation_critic,
+        )
+
+    monkeypatch.setattr(evaluation, "run_validation", fake_run_validation)
+
+    assert evaluation.run_validation_evaluation(tmp_path)
+    summaries = list((tmp_path / "logs" / "evals").glob("*/summary.json"))
+    assert len(summaries) == 1
+    summary = json.loads(summaries[0].read_text(encoding="utf-8"))
+    assert summary["passed"] == 2
+    assert summary["semantic_denied"] == ["semantic_deny"]
+    assert summary["reconciliation_denied"] == []
