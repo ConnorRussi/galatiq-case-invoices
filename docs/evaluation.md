@@ -176,3 +176,42 @@ The shared `events.jsonl` is also scored: a `vp_agent` `invoked` or `decision`
 event must exist exactly when the case expects VP review. The approval runner
 records the `invoked` event before the VP model call, so failed VP attempts are
 still auditable.
+
+### Synthetic VP workflow corpus
+
+The workflow corpus also contains three deliberately labeled synthetic source
+fixtures:
+
+- `synthetic_vp_approved.txt` is a valid USD invoice for `WidgetA` totaling
+  $12,000.00. It is expected to reach VP, receive `GO`, and complete payment.
+- `synthetic_vp_boundary.txt` is a valid USD invoice for `WidgetB` totaling
+  exactly $10,000.00. Because the policy says *above* $10,000, it is expected
+  to remain a Business Rule acceptance with no VP invocation.
+- `synthetic_vp_just_above.txt` is the same standard-term shape at $10,000.10
+  and is expected to reach VP, receive `GO`, and complete payment.
+
+All three use inventory-backed items and quantities, explicit USD, absolute
+dates, source identifiers, zero tax, and line totals that reconcile to the
+amount due. Their cases are included in
+[`evals/workflow/cases.json`](../evals/workflow/cases.json), so the evaluator's
+source-corpus coverage invariant continues to require every file under
+[`data/invoices/`](../data/invoices/) to have one case.
+
+The proposed VP-rejection source is intentionally quarantined at
+[`evals/workflow/fixtures/vp_rejection_candidate.txt`](../evals/workflow/fixtures/vp_rejection_candidate.txt).
+The current approval policy says unsafe or unsupported concerns require
+rejection, and separately says unusual payment conditions *may* be escalated,
+but it does not specify whether this candidate must be rejected directly by the
+Business Rule Agent or escalated and then rejected by VP. Promoting it to the
+live workflow truth set would therefore make the expected `VP_AGENT` / `NO_GO`
+result depend on model judgment. The smallest policy clarification is:
+
+> When an invoice is otherwise valid and exceeds $10,000, an explicit payment
+> condition that is unsafe or unsupported must be escalated to VP; VP must
+> return `NO_GO` when that concern remains unresolved.
+
+This clarification requires owner approval before the candidate is moved under
+`data/invoices/` and added to the live workflow manifest. The focused test
+[`test_workflow_evaluation.py`](../tests/test_workflow_evaluation.py) keeps the
+candidate present and verifies that it remains outside the live corpus. No
+paid/live model evaluation is part of the offline checks.

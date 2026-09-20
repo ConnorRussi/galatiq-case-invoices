@@ -310,6 +310,51 @@
         "vp_invoked": false,
         "vp_decision": null
       }
+    },
+    {
+      "case_id": "synthetic_vp_approved_txt",
+      "invoice_path": "data/invoices/synthetic_vp_approved.txt",
+      "expected": {
+        "workflow_status": "APPROVED_AND_PAID",
+        "stopped_at": "completed",
+        "validation_status": "VALID",
+        "validation_denial_stage": null,
+        "approval_status": "APPROVED",
+        "approval_decision_source": "VP_AGENT",
+        "payment_status": "SUCCESS",
+        "vp_invoked": true,
+        "vp_decision": "GO"
+      }
+    },
+    {
+      "case_id": "synthetic_vp_boundary_txt",
+      "invoice_path": "data/invoices/synthetic_vp_boundary.txt",
+      "expected": {
+        "workflow_status": "APPROVED_AND_PAID",
+        "stopped_at": "completed",
+        "validation_status": "VALID",
+        "validation_denial_stage": null,
+        "approval_status": "APPROVED",
+        "approval_decision_source": "BUSINESS_RULE_AGENT",
+        "payment_status": "SUCCESS",
+        "vp_invoked": false,
+        "vp_decision": null
+      }
+    },
+    {
+      "case_id": "synthetic_vp_just_above_txt",
+      "invoice_path": "data/invoices/synthetic_vp_just_above.txt",
+      "expected": {
+        "workflow_status": "APPROVED_AND_PAID",
+        "stopped_at": "completed",
+        "validation_status": "VALID",
+        "validation_denial_stage": null,
+        "approval_status": "APPROVED",
+        "approval_decision_source": "VP_AGENT",
+        "payment_status": "SUCCESS",
+        "vp_invoked": true,
+        "vp_decision": "GO"
+      }
     }
   ]
 }

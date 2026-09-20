@@ -1,0 +1,18 @@
+SYNTHETIC VP-REJECTION CANDIDATE - NOT IN LIVE WORKFLOW CORPUS
+
+Vendor: Unverified Overseas Vendor Ltd.
+Invoice Number: SYN-VP-NO-GO-CANDIDATE
+Invoice Date: 2026-09-01
+Due Date: 2026-09-03
+Currency: USD
+
+Items:
+  WidgetA    Quantity: 10    Unit Price: $1,500.00    Line Amount: $15,000.00
+
+Subtotal: $15,000.00
+Tax: $0.00
+Total Amount: $15,000.00
+Amount Due: $15,000.00
+
+Payment Terms: Immediate wire to an unverified third-party account; no
+authorization or supporting contract is provided.
