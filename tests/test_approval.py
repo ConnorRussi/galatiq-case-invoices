@@ -186,6 +186,24 @@ def test_vp_no_go_finishes_rejected_in_vp_bucket(monkeypatch):
     assert result.vp_decision.decision == "NO_GO"
 
 
+def test_vp_invocation_is_logged_before_vp_decision(tmp_path, monkeypatch):
+    def fake_invoke(**kwargs):
+        if kwargs["output_model"] is BusinessRuleDecision:
+            return BusinessRuleDecision(decision="VP_REVIEW", reasoning="Escalate.")
+        return VPDecision(decision="GO", reasoning="Authorize.")
+
+    monkeypatch.setattr(agents, "invoke_structured", fake_invoke)
+    context = RunContext("vp-audit", tmp_path / "approval")
+    run_approval(_request(), artifact_context=context)
+
+    events = [
+        json.loads(line)
+        for line in (context.run_dir / "events.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    vp_events = [event for event in events if event["stage"] == "vp_agent"]
+    assert [event["event"] for event in vp_events] == ["invoked", "decision"]
+
+
 def test_vp_reasoning_model_takes_precedence(monkeypatch):
     models = []
 

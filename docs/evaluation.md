@@ -12,6 +12,13 @@ The standalone Approval evaluation is implemented by
 [`src/invoice_system/approval/evaluation.py`](../src/invoice_system/approval/evaluation.py)
 and invoked with `python main.py --eval-approval`.
 
+The live end-to-end workflow evaluation is implemented by
+[`src/invoice_system/workflow_evaluation.py`](../src/invoice_system/workflow_evaluation.py)
+and invoked with `python main.py --eval-workflow`. It runs the real ingestion,
+Semantic -> Reconciliation -> Database validation, approval, and mock payment
+workflow once for every source file listed in
+[`evals/workflow/cases.json`](../evals/workflow/cases.json).
+
 ## What is checked
 
 The evaluator runs expected fixtures under
@@ -152,3 +159,20 @@ The suite contains direct acceptance, VP-approved escalation, VP-rejected
 escalation, and unusual-payment-term routing. Each run writes case artifacts
 under `logs/evals/<evaluation_id>/approval/`, including expected inputs,
 approval events, the actual result, and `summary.json`.
+
+## End-to-end workflow evaluation
+
+The workflow cases are an explicit truth set for all invoice files under
+[`data/invoices/`](../data/invoices/), including alternate source formats and
+the revised invoice. Expected values cover the terminal workflow status,
+stopping stage, validation denial stage, approval/payment status, and VP
+invocation. The evaluator compares typed outcomes and issue codes rather than
+free-form reasoning or mock transaction IDs.
+
+Each case runs live model calls through the same `run_invoice_workflow`
+boundary used by the normal CLI. One failure does not stop the remaining cases.
+Artifacts are written under `logs/evals/<evaluation_id>/workflow/<case_id>/`.
+The shared `events.jsonl` is also scored: a `vp_agent` `invoked` or `decision`
+event must exist exactly when the case expects VP review. The approval runner
+records the `invoked` event before the VP model call, so failed VP attempts are
+still auditable.

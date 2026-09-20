@@ -41,6 +41,13 @@ def run_approval(
             decision = update["business_rule_agent"]["business_rule_decision"]
             if logger is not None:
                 logger.event("business_rule_agent", "decision", decision=decision.decision, triggered_rules=decision.triggered_rules, reasoning=decision.reasoning, concerns=decision.concerns)
+                if decision.decision == "VP_REVIEW":
+                    logger.event(
+                        "vp_agent",
+                        "invoked",
+                        invoice_id=request.invoice_id,
+                        trigger="business_rule_agent",
+                    )
             if progress_callback is not None:
                 progress_callback(f"[3/4] Business rule decision: {decision.decision}")
                 progress_callback(

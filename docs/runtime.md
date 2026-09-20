@@ -57,6 +57,7 @@ python main.py --invoice_path=data/invoices/invoice_1001.txt --database-path=inv
 python main.py --eval-ingestion
 python main.py --eval-validation
 python main.py --eval-approval
+python main.py --eval-workflow
 python -m pytest
 ```
 
@@ -84,3 +85,9 @@ whose supplied upstream statuses are `VALID` and `PASS`. It checks the direct
 business-rule bucket, whether the VP branch was invoked, the VP decision, and
 the final `APPROVED`/`REJECTED` bucket. It does not run ingestion, validation,
 or payment. It remains useful for isolated approval regression coverage.
+
+`--eval-workflow` runs the live end-to-end workflow for every case in
+`evals/workflow/cases.json`, using the selected inventory database and configured
+model credentials. It continues after individual case failures and returns a
+non-zero exit code if any actual terminal decision, denial stage, payment result,
+or VP audit expectation does not match.

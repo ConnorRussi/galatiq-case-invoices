@@ -1,0 +1,315 @@
+{
+  "suite": "workflow",
+  "description": "Live end-to-end expectations for every invoice source fixture.",
+  "cases": [
+    {
+      "case_id": "invoice_1001_txt",
+      "invoice_path": "data/invoices/invoice_1001.txt",
+      "expected": {
+        "workflow_status": "APPROVED_AND_PAID",
+        "stopped_at": "completed",
+        "validation_status": "VALID",
+        "validation_denial_stage": null,
+        "approval_status": "APPROVED",
+        "approval_decision_source": "BUSINESS_RULE_AGENT",
+        "payment_status": "SUCCESS",
+        "vp_invoked": false,
+        "vp_decision": null
+      }
+    },
+    {
+      "case_id": "invoice_1002_txt",
+      "invoice_path": "data/invoices/invoice_1002.txt",
+      "expected": {
+        "workflow_status": "VALIDATION_DENIED",
+        "stopped_at": "validation",
+        "validation_status": "DENIED",
+        "validation_denial_stage": "database",
+        "validation_issue_codes": ["INSUFFICIENT_INVENTORY"],
+        "approval_status": null,
+        "approval_decision_source": null,
+        "payment_status": null,
+        "vp_invoked": false,
+        "vp_decision": null
+      }
+    },
+    {
+      "case_id": "invoice_1003_txt",
+      "invoice_path": "data/invoices/invoice_1003.txt",
+      "expected": {
+        "workflow_status": "VALIDATION_DENIED",
+        "stopped_at": "validation",
+        "validation_status": "DENIED",
+        "validation_denial_stage": "semantic",
+        "validation_issue_codes": ["relative_date"],
+        "approval_status": null,
+        "approval_decision_source": null,
+        "payment_status": null,
+        "vp_invoked": false,
+        "vp_decision": null
+      }
+    },
+    {
+      "case_id": "invoice_1004_json",
+      "invoice_path": "data/invoices/invoice_1004.json",
+      "expected": {
+        "workflow_status": "APPROVED_AND_PAID",
+        "stopped_at": "completed",
+        "validation_status": "VALID",
+        "validation_denial_stage": null,
+        "approval_status": "APPROVED",
+        "approval_decision_source": "BUSINESS_RULE_AGENT",
+        "payment_status": "SUCCESS",
+        "vp_invoked": false,
+        "vp_decision": null
+      }
+    },
+    {
+      "case_id": "invoice_1004_revised_json",
+      "invoice_path": "data/invoices/invoice_1004_revised.json",
+      "expected": {
+        "workflow_status": "APPROVED_AND_PAID",
+        "stopped_at": "completed",
+        "validation_status": "VALID",
+        "validation_denial_stage": null,
+        "approval_status": "APPROVED",
+        "approval_decision_source": "BUSINESS_RULE_AGENT",
+        "payment_status": "SUCCESS",
+        "vp_invoked": false,
+        "vp_decision": null
+      }
+    },
+    {
+      "case_id": "invoice_1005_json",
+      "invoice_path": "data/invoices/invoice_1005.json",
+      "expected": {
+        "workflow_status": "VALIDATION_DENIED",
+        "stopped_at": "validation",
+        "validation_status": "DENIED",
+        "validation_denial_stage": "database",
+        "validation_issue_codes": ["INSUFFICIENT_INVENTORY"],
+        "approval_status": null,
+        "approval_decision_source": null,
+        "payment_status": null,
+        "vp_invoked": false,
+        "vp_decision": null
+      }
+    },
+    {
+      "case_id": "invoice_1006_csv",
+      "invoice_path": "data/invoices/invoice_1006.csv",
+      "expected": {
+        "workflow_status": "PAYMENT_FAILED",
+        "stopped_at": "payment",
+        "validation_status": "VALID",
+        "validation_denial_stage": null,
+        "approval_status": "APPROVED",
+        "approval_decision_source": "BUSINESS_RULE_AGENT",
+        "payment_status": "FAILED",
+        "vp_invoked": false,
+        "vp_decision": null
+      }
+    },
+    {
+      "case_id": "invoice_1007_csv",
+      "invoice_path": "data/invoices/invoice_1007.csv",
+      "expected": {
+        "workflow_status": "VALIDATION_DENIED",
+        "stopped_at": "validation",
+        "validation_status": "DENIED",
+        "validation_denial_stage": "reconciliation",
+        "validation_issue_codes": ["TOTAL_MISMATCH"],
+        "approval_status": null,
+        "approval_decision_source": null,
+        "payment_status": null,
+        "vp_invoked": false,
+        "vp_decision": null
+      }
+    },
+    {
+      "case_id": "invoice_1008_txt",
+      "invoice_path": "data/invoices/invoice_1008.txt",
+      "expected": {
+        "workflow_status": "VALIDATION_DENIED",
+        "stopped_at": "validation",
+        "validation_status": "DENIED",
+        "validation_denial_stage": "database",
+        "validation_issue_codes": ["PRODUCT_NOT_FOUND"],
+        "approval_status": null,
+        "approval_decision_source": null,
+        "payment_status": null,
+        "vp_invoked": false,
+        "vp_decision": null
+      }
+    },
+    {
+      "case_id": "invoice_1009_json",
+      "invoice_path": "data/invoices/invoice_1009.json",
+      "expected": {
+        "workflow_status": "VALIDATION_DENIED",
+        "stopped_at": "validation",
+        "validation_status": "DENIED",
+        "validation_denial_stage": "semantic",
+        "validation_issue_codes": ["negative_quantity"],
+        "approval_status": null,
+        "approval_decision_source": null,
+        "payment_status": null,
+        "vp_invoked": false,
+        "vp_decision": null
+      }
+    },
+    {
+      "case_id": "invoice_1010_txt",
+      "invoice_path": "data/invoices/invoice_1010.txt",
+      "expected": {
+        "workflow_status": "APPROVED_AND_PAID",
+        "stopped_at": "completed",
+        "validation_status": "VALID",
+        "validation_denial_stage": null,
+        "approval_status": "APPROVED",
+        "approval_decision_source": "BUSINESS_RULE_AGENT",
+        "payment_status": "SUCCESS",
+        "vp_invoked": false,
+        "vp_decision": null
+      }
+    },
+    {
+      "case_id": "invoice_1011_pdf",
+      "invoice_path": "data/invoices/invoice_1011.pdf",
+      "expected": {
+        "workflow_status": "APPROVED_AND_PAID",
+        "stopped_at": "completed",
+        "validation_status": "VALID",
+        "validation_denial_stage": null,
+        "approval_status": "APPROVED",
+        "approval_decision_source": "BUSINESS_RULE_AGENT",
+        "payment_status": "SUCCESS",
+        "vp_invoked": false,
+        "vp_decision": null
+      }
+    },
+    {
+      "case_id": "invoice_1011_txt",
+      "invoice_path": "data/invoices/invoice_1011.txt",
+      "expected": {
+        "workflow_status": "APPROVED_AND_PAID",
+        "stopped_at": "completed",
+        "validation_status": "VALID",
+        "validation_denial_stage": null,
+        "approval_status": "APPROVED",
+        "approval_decision_source": "BUSINESS_RULE_AGENT",
+        "payment_status": "SUCCESS",
+        "vp_invoked": false,
+        "vp_decision": null
+      }
+    },
+    {
+      "case_id": "invoice_1012_pdf",
+      "invoice_path": "data/invoices/invoice_1012.pdf",
+      "expected": {
+        "workflow_status": "APPROVED_AND_PAID",
+        "stopped_at": "completed",
+        "validation_status": "VALID",
+        "validation_denial_stage": null,
+        "approval_status": "APPROVED",
+        "approval_decision_source": "BUSINESS_RULE_AGENT",
+        "payment_status": "SUCCESS",
+        "vp_invoked": false,
+        "vp_decision": null
+      }
+    },
+    {
+      "case_id": "invoice_1012_txt",
+      "invoice_path": "data/invoices/invoice_1012.txt",
+      "expected": {
+        "workflow_status": "APPROVED_AND_PAID",
+        "stopped_at": "completed",
+        "validation_status": "VALID",
+        "validation_denial_stage": null,
+        "approval_status": "APPROVED",
+        "approval_decision_source": "BUSINESS_RULE_AGENT",
+        "payment_status": "SUCCESS",
+        "vp_invoked": false,
+        "vp_decision": null
+      }
+    },
+    {
+      "case_id": "invoice_1013_json",
+      "invoice_path": "data/invoices/invoice_1013.json",
+      "expected": {
+        "workflow_status": "VALIDATION_DENIED",
+        "stopped_at": "validation",
+        "validation_status": "DENIED",
+        "validation_denial_stage": "reconciliation",
+        "validation_issue_codes": ["TOTAL_MISMATCH"],
+        "approval_status": null,
+        "approval_decision_source": null,
+        "payment_status": null,
+        "vp_invoked": false,
+        "vp_decision": null
+      }
+    },
+    {
+      "case_id": "invoice_1013_pdf",
+      "invoice_path": "data/invoices/invoice_1013.pdf",
+      "expected": {
+        "workflow_status": "VALIDATION_DENIED",
+        "stopped_at": "validation",
+        "validation_status": "DENIED",
+        "validation_denial_stage": "reconciliation",
+        "validation_issue_codes": ["TOTAL_MISMATCH"],
+        "approval_status": null,
+        "approval_decision_source": null,
+        "payment_status": null,
+        "vp_invoked": false,
+        "vp_decision": null
+      }
+    },
+    {
+      "case_id": "invoice_1014_xml",
+      "invoice_path": "data/invoices/invoice_1014.xml",
+      "expected": {
+        "workflow_status": "APPROVED_AND_PAID",
+        "stopped_at": "completed",
+        "validation_status": "VALID",
+        "validation_denial_stage": null,
+        "approval_status": "APPROVED",
+        "approval_decision_source": "BUSINESS_RULE_AGENT",
+        "payment_status": "SUCCESS",
+        "vp_invoked": false,
+        "vp_decision": null
+      }
+    },
+    {
+      "case_id": "invoice_1015_csv",
+      "invoice_path": "data/invoices/invoice_1015.csv",
+      "expected": {
+        "workflow_status": "PAYMENT_FAILED",
+        "stopped_at": "payment",
+        "validation_status": "VALID",
+        "validation_denial_stage": null,
+        "approval_status": "APPROVED",
+        "approval_decision_source": "BUSINESS_RULE_AGENT",
+        "payment_status": "FAILED",
+        "vp_invoked": false,
+        "vp_decision": null
+      }
+    },
+    {
+      "case_id": "invoice_1016_json",
+      "invoice_path": "data/invoices/invoice_1016.json",
+      "expected": {
+        "workflow_status": "VALIDATION_DENIED",
+        "stopped_at": "validation",
+        "validation_status": "DENIED",
+        "validation_denial_stage": "database",
+        "validation_issue_codes": ["PRODUCT_NOT_FOUND"],
+        "approval_status": null,
+        "approval_decision_source": null,
+        "payment_status": null,
+        "vp_invoked": false,
+        "vp_decision": null
+      }
+    }
+  ]
+}

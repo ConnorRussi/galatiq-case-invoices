@@ -13,7 +13,7 @@ Business Rule/optional VP approval, and approved invoices enter local mock payme
 
 | Boundary | Implementation | Responsibility | Handoff |
 | --- | --- | --- | --- |
-| CLI | [`main.py`](../main.py) | Parse one invoice or evaluation mode; load `.env`; print human progress and final outcome | `run_invoice_workflow` or an isolated evaluator |
+| CLI | [`main.py`](../main.py) | Parse one invoice or evaluation mode; load `.env`; print human progress and final outcome | `run_invoice_workflow` or an evaluator |
 | End-to-end workflow | [`workflow.py`](../src/invoice_system/workflow.py) | Fail-closed routing, stage handoffs, terminal result, and shared audit context | `WorkflowResult` |
 | Execution | [`runner.py`](../src/invoice_system/ingestion/runner.py) | Stream updates, persist artifacts, convert exceptions | `IngestionResult` |
 | Workflow | [`graph.py`](../src/invoice_system/ingestion/graph.py) | Order stages and route critique/revision | graph state |
@@ -29,6 +29,7 @@ Business Rule/optional VP approval, and approved invoices enter local mock payme
 | Database validation | [`validation/database_runner.py`](../src/invoice_system/validation/database_runner.py) | Run bounded bulk inventory lookup and shared-critic review | `DatabaseExecution` |
 | Approval | [`approval/graph.py`](../src/invoice_system/approval/graph.py), [`approval/runner.py`](../src/invoice_system/approval/runner.py) | Apply business policy and route escalations to VP review | `ApprovalResult` |
 | Approval evaluation | [`approval/evaluation.py`](../src/invoice_system/approval/evaluation.py) | Score direct decisions, VP routing, and final buckets | `logs/evals/<evaluation_id>/approval/` |
+| Workflow evaluation | [`workflow_evaluation.py`](../src/invoice_system/workflow_evaluation.py) | Run every source invoice through the live end-to-end workflow and score terminal decisions and VP audit events | `logs/evals/<evaluation_id>/workflow/` |
 | Payment | [`payment/runner.py`](../src/invoice_system/payment/runner.py) | Execute the local mock payment after approval and persist its result | `PaymentResult` |
 
 ## Data flow

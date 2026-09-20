@@ -16,6 +16,7 @@ from invoice_system.ingestion.evaluation import run_evaluation
 from invoice_system.ingestion.run_logging import create_normal_run_context
 from invoice_system.approval.evaluation import run_approval_evaluation
 from invoice_system.validation.evaluation import run_validation_evaluation
+from invoice_system.workflow_evaluation import run_workflow_evaluation
 from invoice_system.workflow import WorkflowStatus, run_invoice_workflow
 
 
@@ -33,6 +34,12 @@ def main() -> int:
         "--eval-validation",
         action="store_true",
         help="Run the end-to-end Validation Agent evaluation",
+    )
+    parser.add_argument(
+        "--eval-workflow",
+        "--eval-end-to-end",
+        action="store_true",
+        help="Run the live end-to-end workflow evaluation for every invoice fixture",
     )
     parser.add_argument(
         "--eval-semantic",
@@ -56,9 +63,11 @@ def main() -> int:
     )
     args = parser.parse_args()
     validation_eval_flags = (args.eval_validation, args.eval_semantic, args.eval_reconciliation)
-    if args.eval_ingestion and (args.eval_approval or any(validation_eval_flags)):
+    if args.eval_ingestion and (args.eval_approval or args.eval_workflow or any(validation_eval_flags)):
         parser.error("choose only one evaluation mode")
-    if args.eval_approval and any(validation_eval_flags):
+    if args.eval_approval and (args.eval_workflow or any(validation_eval_flags)):
+        parser.error("choose only one evaluation mode")
+    if args.eval_workflow and any(validation_eval_flags):
         parser.error("choose only one evaluation mode")
     if sum(validation_eval_flags) > 1:
         parser.error("choose only one validation evaluation mode")
@@ -68,6 +77,9 @@ def main() -> int:
     if args.eval_approval:
         logging.basicConfig(level=logging.INFO, format="%(message)s")
         return 0 if run_approval_evaluation(ROOT) else 1
+    if args.eval_workflow:
+        logging.basicConfig(level=logging.INFO, format="%(message)s")
+        return 0 if run_workflow_evaluation(ROOT, database_path=args.database_path or ROOT / "inventory.sqlite") else 1
     if any(validation_eval_flags):
         logging.basicConfig(level=logging.INFO, format="%(message)s")
         return 0 if run_validation_evaluation(ROOT) else 1

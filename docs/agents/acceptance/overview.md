@@ -27,5 +27,8 @@ rule decisions use `BUSINESS_RULE_AGENT` as the decision source.
 Approval runs write `approval_context.json`, `events.jsonl`, and
 `approval_result.json`; graph failures write `approval_error.json`. Evaluation cases and expected final buckets live under
 [evals/approval/cases/](../../../evals/approval/cases/); generated evaluation
-artifacts live under `logs/evals/<evaluation_id>/approval/`.
+artifacts live under `logs/evals/<evaluation_id>/approval/`. Shared workflow
+events include `vp_agent`/`invoked` before the VP model call and
+`vp_agent`/`decision` after a successful response, so attempted and completed
+VP use can be distinguished in audit logs.
 

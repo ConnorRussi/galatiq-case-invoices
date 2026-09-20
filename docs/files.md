@@ -7,7 +7,7 @@ bytecode, local credentials, and build metadata are intentionally omitted.
 
 | Path | Role | Connected docs |
 | --- | --- | --- |
-| [`main.py`](../main.py) | CLI for one run, ingestion/validation evaluations, or the standalone approval evaluation | [architecture](architecture.md), [runtime](runtime.md) |
+| [`main.py`](../main.py) | CLI for one run, live end-to-end evaluation, ingestion/validation evaluations, or the standalone approval evaluation | [architecture](architecture.md), [runtime](runtime.md) |
 | [`pyproject.toml`](../pyproject.toml) | Python metadata and optional dependencies | [runtime](runtime.md) |
 | [`.env.example`](../.env.example) | Credential-free configuration template | [runtime](runtime.md) |
 | [`README.md`](../README.md) | Existing project overview and case context | [architecture](architecture.md) |
@@ -41,6 +41,7 @@ bytecode, local credentials, and build metadata are intentionally omitted.
 | [`src/invoice_system/validation/database_runner.py`](../src/invoice_system/validation/database_runner.py) | Database specialist and shared-critic execution boundary |
 | [`src/invoice_system/approval/`](../src/invoice_system/approval/) | Business-rule and VP approval contracts, graph, runner, policy, and audit logging |
 | [`src/invoice_system/approval/evaluation.py`](../src/invoice_system/approval/evaluation.py) | Approval routing and final-bucket evaluator |
+| [`src/invoice_system/workflow_evaluation.py`](../src/invoice_system/workflow_evaluation.py) | Live end-to-end workflow scoring and VP audit-event checks |
 | [`src/invoice_system/payment/`](../src/invoice_system/payment/) | Typed local mock payment boundary and audit logging |
 
 ## Inputs and verification
@@ -52,5 +53,6 @@ bytecode, local credentials, and build metadata are intentionally omitted.
 | [`evals/validation/semantic/`](../evals/validation/semantic/) | Semantic expectations, controlled fixtures, and critic cases; references ingestion goldens without changing them |
 | [`evals/validation/reconciliation/`](../evals/validation/reconciliation/) | Controlled Phase 2 fixtures, expected results, and critic cases |
 | [`evals/approval/cases/`](../evals/approval/cases/) | Trusted upstream-pass cases for approval routing and final-status evaluation |
+| [`evals/workflow/cases.json`](../evals/workflow/cases.json) | Expected terminal decisions for every source invoice fixture |
 | [`tests/`](../tests/) | Runtime, ingestion, validation, reconciliation, database, approval, and policy tests |
 | [`inventory.sqlite`](../inventory.sqlite) | Existing case database used by Phase 3 Database validation |
