@@ -231,3 +231,7 @@ This clarification requires owner approval before the candidate is moved under
 [`test_workflow_evaluation.py`](../tests/test_workflow_evaluation.py) keeps the
 candidate present and verifies that it remains outside the live corpus. No
 paid/live model evaluation is part of the offline checks.
+
+## Dashboard verification
+
+`tests/test_dashboard.py` verifies repeated-run preservation, malformed-artifact isolation, empty inputs, and safe embedding of untrusted source text. The dashboard displays workflow evaluation summaries without rescoring outcomes.

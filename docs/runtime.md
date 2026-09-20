@@ -91,3 +91,7 @@ or payment. It remains useful for isolated approval regression coverage.
 model credentials. It continues after individual case failures and returns a
 non-zero exit code if any actual terminal decision, denial stage, payment result,
 or VP audit expectation does not match.
+
+## Local dashboard
+
+Run `python dashboard.py`, then open `runs/dashboard.html`. Rebuild to refresh the snapshot. This requires only the Python standard library and makes no network or model calls. See [dashboard](dashboard.md).

@@ -61,3 +61,11 @@ the production validation graph's reconciliation-to-database-critic handoff.
 | [`evals/workflow/cases.json`](../evals/workflow/cases.json) | Expected terminal decisions for every source invoice fixture |
 | [`tests/`](../tests/) | Runtime, ingestion, validation, reconciliation, database, approval, and policy tests |
 | [`inventory.sqlite`](../inventory.sqlite) | Existing case database used by Phase 3 Database validation |
+
+## Dashboard files
+
+- `dashboard.py`: standard-library artifact collector and HTML snapshot generator.
+- `dashboard_template.html`: self-contained invoice review and evaluation interface.
+- `docs/dashboard.md`: usage, artifact contract, and deferred decisions.
+- `tests/test_dashboard.py`: offline artifact and HTML safety checks.
+- `runs/dashboard.html`: generated local snapshot, excluded from version control.

@@ -67,3 +67,7 @@ authorized USD policy default when no source claim exists,
 transaction ID, and outcome, but it does not contact a bank or external payment
 provider. An unresolved currency conflict is a fail-closed preflight failure and never reaches
 the provider.
+
+## Display-only review interface
+
+`dashboard.py` reads saved workflow results and evaluation summaries into a standalone HTML snapshot. It is a presentation consumer with no edges back to workflow execution or payment. See [dashboard](dashboard.md).

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Acme · Invoice review</title>
+<style>
+:root{font-family:system-ui,-apple-system,sans-serif;color:#20332e;background:#f4f6f3;font-size:14px}*{box-sizing:border-box}body{margin:0}header{background:#173e34;color:white;padding:26px 32px}header p{color:#cfdfd7;margin:8px 0 0}h1{font-size:25px;margin:0}h2{font-size:21px;margin:0 0 12px}h3{font-size:15px;margin:22px 0 10px}main{padding:24px 32px;max-width:1700px;margin:auto}button,input,select{font:inherit}button,select,input{border:1px solid #b6c6bd;border-radius:7px;padding:9px 12px;background:white;color:#20332e}button{cursor:pointer}button:hover{background:#eaf1ec}button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid #28735e;outline-offset:3px}nav{display:flex;gap:8px;margin-bottom:22px}nav button[aria-pressed=true]{background:#173e34;color:white}.muted{color:#5d6d66;font-size:12px}.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}.toolbar input{flex:1;min-width:160px}.layout{display:grid;grid-template-columns:minmax(400px,1fr) minmax(400px,1.15fr);gap:20px;align-items:start}.card{background:white;border:1px solid #dce4dd;border-radius:12px;padding:22px;min-width:0}.scroll{overflow:auto}table{border-collapse:collapse;width:100%;text-align:left}th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#5d6d66}th,td{padding:12px 9px;border-bottom:1px solid #e7ece8;vertical-align:top}td{font-size:13px}td button{padding:4px 0;border:0;background:none;text-align:left;font-weight:650;color:#17614d}tr.selected{background:#edf5ef}.badge{display:inline-block;border-radius:5px;padding:4px 7px;background:#fff0d9;color:#704b0e;font-size:12px;white-space:nowrap}.paid{background:#e5f3e9;color:#245c39}.callout{background:#f7f3e9;border-left:3px solid #b98730;padding:14px;line-height:1.6}.facts{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:20px 0}.facts span{display:block;color:#5d6d66;font-size:12px;margin-bottom:4px}p{line-height:1.6;overflow-wrap:anywhere}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f5f7f4;padding:14px;font-size:12px;max-height:440px;overflow:auto}details{border-top:1px solid #e7ece8;margin-top:18px;padding-top:14px}summary{cursor:pointer;font-weight:600}.stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px}.stat{padding:14px 20px;border:1px solid #dce4dd;background:white;border-radius:9px}.stat strong{font-size:22px;margin-right:8px}.empty{padding:36px;color:#5d6d66;text-align:center}[hidden]{display:none!important}@media(max-width:1000px){.layout{grid-template-columns:1fr}main,header{padding:20px}.card{padding:16px}} 
+tr[data-index]{cursor:pointer}tr[data-index]:hover{background:#e5efe8}tr[data-index]:focus-within{outline:2px solid #28735e;outline-offset:-2px}.run-group th{background:#e8eee9;padding:14px 9px;text-transform:none;font-size:13px;letter-spacing:0}
+</style>
+</head>
+<body>
+<header><h1>Acme / Invoice review</h1><p>Review invoice outcomes, supporting evidence, and items that need attention.</p></header>
+<main>
+<nav aria-label="Dashboard views"><button id="invoiceTab" aria-pressed="true">Invoices</button><button id="evalTab" aria-pressed="false">Evaluation results</button></nav>
+<p class="muted" id="snapshot"></p><div id="warnings"></div>
+<section id="invoices"><div class="stats" id="stats"></div>
+<div class="toolbar"><input id="search" type="search" aria-label="Search invoice or vendor" placeholder="Search invoice or vendor"><select id="runFilter" aria-label="Filter by evaluation run"><option value="all">All runs</option></select><select id="filter" aria-label="Filter by outcome"><option value="all">All outcomes</option><option value="review">Needs review</option><option value="paid">Paid — simulated</option></select></div>
+<div class="layout"><div class="card scroll"><p class="muted">Needs review first · Each row is a separate saved run</p><table><thead><tr><th>Invoice / vendor</th><th>Amount</th><th>Due date</th><th>Outcome / reason</th></tr></thead><tbody id="rows"></tbody></table><p id="empty" class="empty" hidden>No saved runs match this view.</p></div><article class="card" id="detail" aria-label="Invoice details" aria-live="polite"></article></div></section>
+<section id="evaluations" hidden><div class="card" id="evalContent"></div></section>
+</main>
+<script id="data" type="application/json">__DASHBOARD_DATA__</script>
+<script>
+const data=JSON.parse(document.getElementById('data').textContent);
+const $=id=>document.getElementById(id);
+const esc=v=>String(v??'—').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const invoice=r=>r.result.ingestion?.normalization?.invoice||{};
+const paid=r=>r.result.status==='APPROVED_AND_PAID';
+const money=(v,c)=>v==null?'—':`${esc(v)} ${esc(c||'(currency unspecified)')}`;
+const badge=r=>`<span class="badge ${paid(r)?'paid':''}">${paid(r)?'Paid — simulated':'Needs review'}</span>`;
+const stamp=v=>{const d=new Date(v);return Number.isNaN(d.getTime())?v:d.toLocaleString()};
+const names={VALIDATION_DENIED:'Validation declined',APPROVAL_REJECTED:'Approval declined',PAYMENT_FAILED:'Payment blocked or failed',TECHNICAL_FAILURE:'Processing error',APPROVED_AND_PAID:'Paid — simulated'};
+const group=r=>r.id.startsWith('evals/')?r.id.split('/').slice(0,2).join('/'):'invoice-runs';
+const groupLabel=g=>g==='invoice-runs'?'Individual invoice runs':'Evaluation run ? '+g.split('/')[1];
+const groups=[...new Set(data.runs.map(group))].sort((a,b)=>b.localeCompare(a));
+$('runFilter').innerHTML+=groups.map(g=>`<option value="${esc(g)}">${esc(groupLabel(g))}</option>`).join('');
+let selected=null;
+$('snapshot').textContent=`Read-only snapshot · Generated ${stamp(data.generated)} · Rebuild with python dashboard.py to see new runs.`;
+if(data.warnings.length)$('warnings').innerHTML=`<details><summary>${data.warnings.length} unreadable artifacts skipped</summary><pre>${esc(data.warnings.join('\n'))}</pre></details>`;
+function render(){
+ const query=$('search').value.toLowerCase(); const filter=$('filter').value;
+ const runs=data.runs.filter(r=>{const i=invoice(r);return `${r.result.invoice_id||''} ${i.vendor||''} ${r.id}`.toLowerCase().includes(query)&&($('runFilter').value==='all'||group(r)===$('runFilter').value)&&(filter==='all'||(filter==='paid'?paid(r):!paid(r)))}).sort((a,b)=>group(b).localeCompare(group(a))||Number(paid(a))-Number(paid(b))||b.saved.localeCompare(a.saved));
+ $('stats').innerHTML=`<div class="stat"><strong>${runs.filter(r=>!paid(r)).length}</strong>Needs review</div><div class="stat"><strong>${runs.filter(paid).length}</strong>Paid — simulated</div><div class="stat"><strong>${runs.length}</strong>Displayed runs</div>`;
+ if(!runs.some(r=>r.id===selected))selected=runs[0]?.id;
+ $('rows').innerHTML=runs.map((r,index)=>{const i=invoice(r);return `${index===0||group(r)!==group(runs[index-1])?`<tr class="run-group"><th colspan="4" scope="colgroup">${esc(groupLabel(group(r)))}</th></tr>`:''}<tr data-index="${index}" class="${r.id===selected?'selected':''}"><td><button data-index="${index}" aria-pressed="${r.id===selected}">${esc(r.result.invoice_id||i.invoice_number||'Unidentified invoice')}</button><div>${esc(i.vendor)}</div><div class="muted">${esc(stamp(r.saved))}</div><div class="muted">${r.id.startsWith('evals/')?'Evaluation run':'Invoice run'}</div></td><td>${money(i.amount_due??i.invoice_total,i.currency)}</td><td>${esc(i.due_date)}</td><td>${badge(r)}<p>${esc(r.result.reason)}</p></td></tr>`}).join('');
+ $('empty').hidden=!!runs.length;
+ $('rows').querySelectorAll('tr[data-index]').forEach(row=>row.onclick=event=>{const keyboard=event.detail===0;selected=runs[Number(row.dataset.index)].id;render();if(keyboard)$('rows').querySelector('tr.selected button')?.focus()});
+ show(runs.find(r=>r.id===selected));
+}
+function show(run){
+ if(!run){$('detail').innerHTML='<div class="empty">Select an invoice to review its details. Run the invoice workflow, then rebuild this dashboard to populate an empty workspace.</div>';return}
+ const r=run.result,i=invoice(run),v=r.validation||{},a=r.approval||{},p=r.payment||{};
+ const next=paid(run)?'No action needed for this simulated payment.':r.status==='TECHNICAL_FAILURE'?'Ask the operator to investigate the processing error before rerunning.':r.status==='APPROVAL_REJECTED'?'Review the approval concerns with the authorized approver.':r.status==='PAYMENT_FAILED'?'Confirm missing payment details or investigate the failure before retrying.':'Compare the flagged information with the source invoice and resolve the discrepancy.';
+ const table=(headers,rows)=>`<div class="scroll"><table><thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+ const source=r.ingestion?.source_document?.chunks||[];
+ $('detail').innerHTML=`${badge(run)}<h2 style="margin-top:14px">${esc(r.invoice_id||i.invoice_number||'Invoice details')}</h2><div class="callout"><strong>${esc(names[r.status]||r.status)}</strong><p>${esc(r.reason)}</p><strong>Next action</strong><p>${esc(next)}</p></div>
+ <div class="facts"><div><span>Vendor</span>${esc(i.vendor)}</div><div><span>Amount due / total</span>${money(i.amount_due??i.invoice_total,i.currency)}</div><div><span>Invoice date</span>${esc(i.invoice_date)}</div><div><span>Due date</span>${esc(i.due_date)}</div></div>
+ <h3>Original line items</h3>${table(['Description','Quantity','Unit price','Declared amount'],(i.items||[]).map(x=>[x.item_name,x.quantity,x.unit_price,x.line_amount]))}
+ <h3>Totals</h3>${table(['Subtotal','Tax','Shipping','Discount','Invoice total'],[[i.subtotal,i.tax_amount,i.shipping,i.discount,i.invoice_total]])}
+ <h3>Inventory checks</h3>${table(['Product','Source lines','Requested','Available','Result'],(v.database_result?.results||[]).map(x=>[x.matched_item||x.requested_name,(x.source_lines||[]).join(', '),x.requested_quantity,x.available_stock,!x.product_found?'Not found':x.inventory_sufficient===true?'Sufficient':x.inventory_sufficient===false?'Insufficient':'Unconfirmed']))}
+ <h3>Consolidated items</h3>${table(['Product','Quantity','Original prices','Combined amount'],(v.reconciliation_result?.consolidated_items||[]).map(x=>[x.product_name,x.combined_quantity,(x.unit_prices||[]).join(', '),x.derived_line_total]))}
+ <h3>Approval and payment</h3><p>Approval: ${esc(a.final_status||'Not reached')} · VP decision: ${esc(a.vp_decision?.decision||'No recorded decision')}</p><p>${esc(a.reasoning||'No approval decision recorded.')}</p><p>Mock payment: ${esc(p.status||'Not reached')} · Transaction: ${esc(p.transaction_id||'None')}</p>
+ <details><summary>Additional fields and recorded assumptions</summary><p class="muted">Shown as recorded by the workflow; this dashboard does not infer currency or other missing facts.</p><pre>${esc(JSON.stringify(i.additional_fields||{},null,2))}</pre></details>
+ <details><summary>Original source text</summary>${source.length?source.map(c=>`<p class="muted">${esc(c.id)}${c.page?' · Page '+esc(c.page):''}</p><pre>${esc(c.text)}</pre>`).join(''):'<p>Source text was not saved for this run.</p>'}</details>
+ <details><summary>Processing details and evidence</summary><p>Saved ${esc(stamp(run.saved))}</p><p>Artifact: ${esc(run.id)}</p><pre>${esc(JSON.stringify({stopped_at:r.stopped_at,ingestion_status:r.ingestion?.status,critique:r.ingestion?.critique,validation_issues:v.issues,calculations:v.reconciliation_result?.calculations,evidence:r.ingestion?.normalization?.evidence},null,2))}</pre></details>`;
+}
+function evaluations(){
+ $('evalContent').innerHTML='<h2>Workflow evaluation results</h2><p>A passing case matched its expected outcome. Expected rejections and payment blocks can pass; passing does not mean paid. Results reflect the code and policy at the time of each run.</p>'+ (data.evaluations.length?data.evaluations.map(e=>{const s=e.summary;return `<details open><summary>${esc(s.evaluation_id)} · ${s.passed_cases?.length??0}/${esc(s.case_count)} cases matched</summary><p class="muted">${esc(stamp(s.started_at))} — ${esc(stamp(s.completed_at))}</p><h3>Failed cases</h3><p>${esc((s.failed_cases||[]).join(', ')||'None')}</p><h3>Outcome checks</h3><pre>${esc(JSON.stringify(s.metrics||{},null,2))}</pre><h3>Mismatch categories</h3><pre>${esc(JSON.stringify(s.mismatch_categories||{},null,2))}</pre><p class="muted">${esc(e.id)}</p></details>`}).join(''):'<p class="empty">No completed workflow evaluation summaries found. Partial runs remain available in the invoice list.</p>');
+}
+function tab(evalView){$('invoices').hidden=evalView;$('evaluations').hidden=!evalView;$('invoiceTab').setAttribute('aria-pressed',String(!evalView));$('evalTab').setAttribute('aria-pressed',String(evalView))}
+$('invoiceTab').onclick=()=>tab(false);$('evalTab').onclick=()=>tab(true);$('search').oninput=render;$('filter').onchange=render;$('runFilter').onchange=render;render();evaluations();
+</script>
+</body></html>

@@ -49,3 +49,7 @@ single long document.
 - **Edge**: a dependency, handoff, route, or ownership relationship expressed with a link or `->`.
 - **Source of truth**: current Python code and tests for behavior; these docs explain and connect it.
 - **Planned**: an intentional extension point with no shipped implementation.
+
+## Review interface
+
+- [Invoice review dashboard](dashboard.md) ? local display-only HTML snapshot of saved runs and workflow evaluations.

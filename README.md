@@ -168,3 +168,7 @@ Output should include structured logs and results.
 ## Submission
 
 Submit your solution as a link to a public GitHub repository — GitHub only (github.com).
+
+## Invoice review dashboard
+
+Run `python dashboard.py` and open `runs/dashboard.html` for a display-only invoice list, review details, and workflow evaluation results. Rebuild after new runs. No model calls or server are needed. See [dashboard guide](docs/dashboard.md).
