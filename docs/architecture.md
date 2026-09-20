@@ -25,6 +25,7 @@ Business Rule/optional VP approval, and approved invoices enter local mock payme
 | Evaluation | [`evaluation.py`](../src/invoice_system/ingestion/evaluation.py) | Compare goldens and run challenges | evaluation report |
 | Validation Agent evaluation | [`validation/evaluation.py`](../src/invoice_system/validation/evaluation.py) | Run trusted inputs through Semantic -> Reconciliation -> Database and compare the growing truth set | `logs/evals/<evaluation_id>/` |
 | Validation | [`validation/runner.py`](../src/invoice_system/validation/runner.py) | Run the Semantic boundary or full Semantic -> Reconciliation -> Database graph | `ValidationResult` |
+| Product identity | [`validation/identity.py`](../src/invoice_system/validation/identity.py) | Interpret conservative fulfillment qualifiers into auditable source-line mappings; preserve source descriptions | `ProductIdentityMapping` values consumed by Reconciliation |
 | Shared validation critic | [`validation/critic.py`](../src/invoice_system/validation/critic.py) | Review specialist work and route revisions | `CriticResult` |
 | Database validation | [`validation/database_runner.py`](../src/invoice_system/validation/database_runner.py) | Run bounded bulk inventory lookup and shared-critic review | `DatabaseExecution` |
 | Approval | [`approval/graph.py`](../src/invoice_system/approval/graph.py), [`approval/runner.py`](../src/invoice_system/approval/runner.py) | Apply business policy and route escalations to VP review | `ApprovalResult` |
@@ -48,10 +49,21 @@ The source is never rewritten by normalization or critique. Evidence points
 back to source chunk IDs and optional quoted source text. Financial values use
 `Decimal`; JSON-safe model serialization preserves precision.
 
+Reconciliation keeps product identity interpretation separate from Decimal
+arithmetic. It records each named source line's original description and
+resolved identity, consolidates mapped lines, and calculates quantity and
+amount from the original lines. The Database stage checks the resulting
+combined quantity once against the matched inventory record. Database critic
+review receives the accepted reconciliation mappings through both execution
+paths. Independent coverage, quantity, and stock checks can require revision;
+they cannot establish product equivalence or override critic disagreement.
+Contradictory critic agreements are kept within validation's revision loop.
+
 ## Payment boundary
 
 Payment is intentionally local and simulated. It records the vendor, selected
-amount (`amount_due`, then `invoice_total`), required source-confirmed currency,
+amount (`amount_due`, then `invoice_total`), resolved currency including the
+authorized USD policy default when no source claim exists,
 transaction ID, and outcome, but it does not contact a bank or external payment
-provider. Missing currency is a fail-closed preflight failure and never reaches
+provider. An unresolved currency conflict is a fail-closed preflight failure and never reaches
 the provider.

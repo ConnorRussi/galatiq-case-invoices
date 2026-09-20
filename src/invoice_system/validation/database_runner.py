@@ -65,6 +65,7 @@ def run_database_validation(
             previous_critic=previous_critic,
             revision_count=revision_count,
             revision_feedback=feedback,
+            reconciliation_result=reconciliation_result,
         )
         if progress_callback is not None:
             progress_callback(

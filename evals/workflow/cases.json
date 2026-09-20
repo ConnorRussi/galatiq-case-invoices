@@ -99,13 +99,13 @@
       "case_id": "invoice_1006_csv",
       "invoice_path": "data/invoices/invoice_1006.csv",
       "expected": {
-        "workflow_status": "PAYMENT_FAILED",
-        "stopped_at": "payment",
+        "workflow_status": "APPROVED_AND_PAID",
+        "stopped_at": "completed",
         "validation_status": "VALID",
         "validation_denial_stage": null,
         "approval_status": "APPROVED",
         "approval_decision_source": "BUSINESS_RULE_AGENT",
-        "payment_status": "FAILED",
+        "payment_status": "SUCCESS",
         "vp_invoked": false,
         "vp_decision": null
       }
@@ -284,13 +284,13 @@
       "case_id": "invoice_1015_csv",
       "invoice_path": "data/invoices/invoice_1015.csv",
       "expected": {
-        "workflow_status": "PAYMENT_FAILED",
-        "stopped_at": "payment",
+        "workflow_status": "APPROVED_AND_PAID",
+        "stopped_at": "completed",
         "validation_status": "VALID",
         "validation_denial_stage": null,
         "approval_status": "APPROVED",
         "approval_decision_source": "BUSINESS_RULE_AGENT",
-        "payment_status": "FAILED",
+        "payment_status": "SUCCESS",
         "vp_invoked": false,
         "vp_decision": null
       }

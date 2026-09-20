@@ -107,7 +107,7 @@ def test_critic_rejects_evidence_correction_targeting_invoice_field(monkeypatch)
     assert critic.critique(source('DATE: 26-Jan-2O26'), candidate).issues == []
 
 
-def test_normalizer_contract_handles_blank_ambiguous_amount_notes_and_embedded_po(monkeypatch):
+def test_normalizer_contract_handles_blank_ambiguous_amount_and_preserves_notes(monkeypatch):
     source_document = source('Amt: $15,000.00\nRef PO-20260115. Deliver to dock B.')
     candidate = NormalizationResult(invoice={
         'vendor': '',
@@ -127,13 +127,30 @@ def test_normalizer_contract_handles_blank_ambiguous_amount_notes_and_embedded_p
     assert result.invoice.subtotal is None
     assert result.invoice.additional_fields['amount_raw'] == '$15,000.00'
     assert result.invoice.additional_fields['payment_terms'] is None
-    assert result.invoice.additional_fields['purchase_order'] == 'PO-20260115'
     assert result.invoice.additional_fields['notes'] == 'Ref PO-20260115. Deliver to dock B.'
     assert result.invoice.items[0].additional_fields == {'notes': 'Keep this note'}
     assert {item.field_path for item in result.evidence} >= {
-        'additional_fields.amount_raw', 'additional_fields.purchase_order',
+        'additional_fields.amount_raw',
         'items[0].additional_fields.notes',
     }
+
+
+def test_po_amendment_is_not_promoted_or_given_fabricated_evidence(monkeypatch):
+    source_document = source('Notes: PO amendment required before shipment.')
+    candidate = NormalizationResult(invoice={
+        'additional_fields': {'notes': 'PO amendment required before shipment.'},
+    }, evidence=[{
+        'field_path': 'additional_fields.notes',
+        'source_chunk_ids': ['text_1'],
+        'source_text': 'PO amendment required before shipment.',
+    }])
+    monkeypatch.setattr(normalizer, 'invoke_structured', lambda **kw: candidate)
+
+    result = normalizer.normalize(source_document)
+
+    assert 'purchase_order' not in result.invoice.additional_fields
+    assert all(item.field_path != 'additional_fields.purchase_order' for item in result.evidence)
+    assert result.invoice.additional_fields['notes'] == 'PO amendment required before shipment.'
 
 
 def test_normalizer_contract_promotes_explicit_total_and_amount_due(monkeypatch):
@@ -231,13 +248,22 @@ def test_normalizer_collects_usd_from_dollar_symbol(monkeypatch):
     assert any(item.field_path == 'currency' and item.source_text == '$' for item in result.evidence)
 
 
-def test_normalizer_keeps_currency_unknown_without_code_or_symbol(monkeypatch):
+def test_normalizer_applies_policy_default_usd_without_currency_evidence(monkeypatch):
     candidate = NormalizationResult(invoice={'currency': 'USD'}, evidence=[])
     monkeypatch.setattr(normalizer, 'invoke_structured', lambda **kw: candidate)
 
     result = normalizer.normalize(source('Total: 225.00'))
 
-    assert result.invoice.currency is None
+    assert result.invoice.currency == 'USD'
+    assert result.invoice.additional_fields['currency_source'] == 'policy_default'
+    assert all(item.field_path != 'currency' for item in result.evidence)
+    completed = IngestionResult(
+        status=IngestionStatus.ACCEPT,
+        source_path='test.txt',
+        source_document=source('Total: 225.00'),
+        normalization=result,
+    )
+    assert _evidence_section(completed).passed
 
 
 def test_normalizer_collects_explicit_currency_code(monkeypatch):
@@ -248,6 +274,33 @@ def test_normalizer_collects_explicit_currency_code(monkeypatch):
 
     assert result.invoice.currency == 'EUR'
     assert any(item.field_path == 'currency' and 'EUR' in (item.source_text or '') for item in result.evidence)
+
+
+def test_normalizer_preserves_explicit_non_usd_currency(monkeypatch):
+    candidate = NormalizationResult(invoice={'currency': 'USD'}, evidence=[])
+    monkeypatch.setattr(normalizer, 'invoke_structured', lambda **kw: candidate)
+
+    result = normalizer.normalize(source('Currency: EUR\nTotal: 225.00'))
+
+    assert result.invoice.currency == 'EUR'
+    assert result.invoice.additional_fields.get('currency_source') is None
+    assert any(item.field_path == 'currency' and 'EUR' in (item.source_text or '') for item in result.evidence)
+
+
+def test_conflicting_currency_claims_are_preserved_and_require_review(monkeypatch):
+    candidate = NormalizationResult(invoice={'currency': 'USD'}, evidence=[])
+    monkeypatch.setattr(normalizer, 'invoke_structured', lambda **kw: candidate)
+
+    source_document = source('Currency: EUR\nTotal: $225.00')
+    result = normalizer.normalize(source_document)
+    completed = build_completed_result(
+        source_path='test.txt', source_document=source_document,
+        normalization=result, critique=CritiqueResult(), revision_count=0,
+    )
+
+    assert result.invoice.currency is None
+    assert {claim['currency'] for claim in result.invoice.additional_fields['currency_conflict']} == {'EUR', 'USD'}
+    assert completed.status == IngestionStatus.NEEDS_REVIEW
 
 
 @pytest.mark.parametrize(('quote', 'ids', 'passed'), [

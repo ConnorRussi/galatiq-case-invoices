@@ -39,6 +39,14 @@ critic-confirmed Semantic DENY never runs Phase 2.
 when present, and consolidation source-line coverage. `arithmetic.py` provides
 observable Decimal evidence; it does not replace the LLM specialist.
 
+Product identity interpretation is a separate deterministic concern in
+[`validation/identity.py`](../../../src/invoice_system/validation/identity.py).
+It emits an auditable mapping for each named source line. Only recognized
+fulfillment qualifiers, currently `rush order`, may resolve to an unqualified
+product already present in the invoice; unknown or ambiguous qualifiers stay
+unresolved. Arithmetic consumes that mapping but still calculates every line
+from its original quantity and unit price.
+
 ## Database boundary
 
 `database.py` and `database_tool.py` provide the Phase 3 inventory validation
@@ -47,9 +55,21 @@ trimming only. The specialist may deliberately request meaning-preserving
 variations for unresolved products, using at most three lookup rounds, and
 `DatabaseResult.attempted_names` preserves the complete lookup history.
 Database receives Reconciliation's consolidated items, so quantity and source
-line mapping are checked once per consolidated product. An unknown requested
+line mapping are checked once per consolidated product. All source lines mapped
+to one inventory item are therefore aggregated before the stock comparison.
+Database completeness is measured by exact one-time coverage of named source
+lines, not by requiring a separate lookup for every raw description. An unknown requested
 quantity remains unknown and produces `MISSING_QUANTITY` rather than passing
 inventory sufficiency. `database_runner.py`
 remains the reusable critiqued execution boundary; the main graph uses the same
 specialist and shared critic in the growing Semantic -> Reconciliation ->
 Database flow. Semantic or Reconciliation DENY short-circuits Database.
+
+Both execution paths pass the accepted Reconciliation result into the shared
+critic. The critic reviews identity using source descriptions, qualifiers,
+resolved products, and source lines; attempted names describe actual SQL
+requests. Independent checks in `critic.py` verify exact coverage, quantities
+from original lines, and stock conclusions. They never discard identity
+findings or force agreement. Contradictory AGREE responses require revision
+and fail closed after the existing bound. Offline graph regressions live in
+[`test_database_handoff.py`](../../../tests/test_database_handoff.py).

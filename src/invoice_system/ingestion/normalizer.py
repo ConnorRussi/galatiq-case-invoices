@@ -31,8 +31,9 @@ claim in an appropriate additional_fields key such as due_date_raw or amount_raw
 Treat generic labels such as "Amt" or "Amount" as ambiguous: never promote them
 to subtotal, invoice_total, or amount_due, even when item arithmetic happens to
 match. Preserve the raw amount instead. Use canonical additional-field names,
-including notes (never note), and extract a clearly identified purchase order
-from a larger note while preserving the complete note unchanged.
+including notes (never note). Extract a purchase order only when the source
+clearly identifies an actual PO identifier; do not turn generic phrases such as
+"PO amendment" into an identifier. Preserve complete source notes.
 
 Treat explicitly labeled totals as typed source claims: "Total Amount", "Grand
 Total", "Invoice Total", and "Total" map to invoice_total; "Amount Due",
@@ -91,7 +92,6 @@ def revise_normalization(
     return _enforce_normalization_contract(source, result)
 
 
-_PO_PATTERN = re.compile(r"\bPO(?:[-\s]*[A-Z0-9]+(?:-[A-Z0-9]+)*)", re.IGNORECASE)
 _GENERIC_AMOUNT_PATTERN = re.compile(
     r"\b(?:amt|amount)\s*[:#]?\s*(?P<value>[$€£]?\s*-?[\d][\d,]*(?:\.\d+)?)",
     re.IGNORECASE,
@@ -122,9 +122,7 @@ _CURRENCY_SYMBOL_PATTERNS = (
     ("USD", re.compile(r"\$")),
     ("EUR", re.compile("\u20ac")),
     ("GBP", re.compile("\u00a3")),
-)
-
-
+        )
 def _enforce_normalization_contract(
     source: SourceDocument, normalization: NormalizationResult
 ) -> NormalizationResult:
@@ -136,12 +134,10 @@ def _enforce_normalization_contract(
     """
     _normalize_blank_strings(normalization.invoice)
     _canonicalize_additional_field_names(normalization)
-    _extract_embedded_purchase_order(normalization)
     _demote_ambiguous_amounts(source, normalization)
     _promote_explicit_amounts(source, normalization)
     _enforce_currency_contract(source, normalization)
     _canonicalize_evidence_paths(normalization)
-    _add_missing_purchase_order_evidence(source, normalization)
     return normalization
 
 
@@ -173,21 +169,6 @@ def _canonicalize_additional_field_names(normalization: NormalizationResult) -> 
         note = fields.pop("note")
         if fields.get("notes") in (None, ""):
             fields["notes"] = note
-
-
-def _extract_embedded_purchase_order(normalization: NormalizationResult) -> None:
-    invoice = normalization.invoice
-    if invoice.additional_fields.get("purchase_order") not in (None, ""):
-        return
-    notes = [invoice.additional_fields.get("notes")]
-    notes.extend(item.additional_fields.get("notes") for item in invoice.items)
-    for note in notes:
-        if not isinstance(note, str):
-            continue
-        match = _PO_PATTERN.search(note)
-        if match:
-            invoice.additional_fields["purchase_order"] = match.group(0).replace(" ", "")
-            return
 
 
 def _demote_ambiguous_amounts(source: SourceDocument, normalization: NormalizationResult) -> None:
@@ -298,36 +279,51 @@ def _promote_explicit_amounts(source: SourceDocument, normalization: Normalizati
 
 
 def _enforce_currency_contract(source: SourceDocument, normalization: NormalizationResult) -> None:
-    """Keep currency source-backed and collect explicit ISO codes.
+    """Apply explicit currency claims, the authorized USD default, and conflicts."""
 
-    An explicit ISO code or unambiguous currency symbol is a source claim and may
-    be copied into the typed field when the model omitted it. The dollar symbol
-    is treated as USD for this workflow.
-    """
-
-    source_claim = None
+    claims = []
     for chunk in source.chunks:
-        match = _CURRENCY_LABEL_PATTERN.search(chunk.text) or _CURRENCY_CODE_PATTERN.search(chunk.text)
-        if match is not None:
-            source_claim = (chunk, match.group("code"), match.group(0).strip())
-            break
+        for match in _CURRENCY_LABEL_PATTERN.finditer(chunk.text):
+            claims.append((chunk, match.group("code").upper(), match.group(0).strip()))
+        for match in _CURRENCY_CODE_PATTERN.finditer(chunk.text):
+            claims.append((chunk, match.group("code").upper(), match.group(0).strip()))
         for code, pattern in _CURRENCY_SYMBOL_PATTERNS:
-            match = pattern.search(chunk.text)
-            if match is not None:
-                source_claim = (chunk, code, match.group(0))
-                break
-        if source_claim is not None:
-            break
-    if source_claim is None:
-        normalization.invoice.currency = None
+            for match in pattern.finditer(chunk.text):
+                claims.append((chunk, code, match.group(0)))
+
+    unique_claims = []
+    seen = set()
+    for claim in claims:
+        key = (claim[0].id, claim[1], claim[2])
+        if key not in seen:
+            seen.add(key)
+            unique_claims.append(claim)
+
+    currencies = list(dict.fromkeys(claim[1] for claim in unique_claims))
+    invoice = normalization.invoice
+    invoice.additional_fields.pop("currency_conflict", None)
+    if len(currencies) > 1:
+        invoice.currency = None
+        invoice.additional_fields["currency_conflict"] = [
+            {"currency": code, "source_text": text, "source_chunk_id": chunk.id}
+            for chunk, code, text in unique_claims
+        ]
         normalization.evidence = [
             item for item in normalization.evidence if item.field_path != "currency"
         ]
         return
 
-    source_chunk, currency, source_text = source_claim
-    currency = currency.upper()
-    normalization.invoice.currency = currency
+    if not unique_claims:
+        invoice.currency = "USD"
+        invoice.additional_fields["currency_source"] = "policy_default"
+        normalization.evidence = [
+            item for item in normalization.evidence if item.field_path != "currency"
+        ]
+        return
+
+    source_chunk, currency, source_text = unique_claims[0]
+    invoice.additional_fields.pop("currency_source", None)
+    invoice.currency = currency
     evidence = next(
         (item for item in normalization.evidence if item.field_path == "currency"),
         None,
@@ -351,43 +347,3 @@ def _canonicalize_evidence_paths(normalization: NormalizationResult) -> None:
             r"\.additional_fields\.note$", ".additional_fields.notes", evidence.field_path
         )
 
-
-def _add_missing_purchase_order_evidence(
-    source: SourceDocument, normalization: NormalizationResult
-) -> None:
-    invoice = normalization.invoice
-    if invoice.additional_fields.get("purchase_order") in (None, ""):
-        return
-    path = "additional_fields.purchase_order"
-    if any(item.field_path == path for item in normalization.evidence):
-        return
-    note_evidence = next(
-        (
-            item
-            for item in normalization.evidence
-            if item.field_path == "additional_fields.notes"
-            and item.source_text
-            and _PO_PATTERN.search(item.source_text)
-        ),
-        None,
-    )
-    if note_evidence is not None:
-        normalization.evidence.append(
-            type(note_evidence)(
-                field_path=path,
-                source_chunk_ids=list(note_evidence.source_chunk_ids),
-                source_text=note_evidence.source_text,
-            )
-        )
-        return
-    for chunk in source.chunks:
-        match = _PO_PATTERN.search(chunk.text)
-        if match:
-            normalization.evidence.append(
-                FieldEvidence(
-                    field_path=path,
-                    source_chunk_ids=[chunk.id],
-                    source_text=match.group(0),
-                )
-            )
-            return

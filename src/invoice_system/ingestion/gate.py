@@ -12,9 +12,13 @@ def build_completed_result(
     revision_count: int,
     revision_errors: list[str] | None = None,
 ) -> IngestionResult:
+    currency_conflict = bool(
+        normalization is not None
+        and normalization.invoice.additional_fields.get("currency_conflict")
+    )
     status = (
         IngestionStatus.ACCEPT
-        if critique is not None and not critique.issues and not revision_errors
+        if critique is not None and not critique.issues and not revision_errors and not currency_conflict
         else IngestionStatus.NEEDS_REVIEW
     )
     return IngestionResult(

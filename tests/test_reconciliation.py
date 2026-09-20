@@ -7,6 +7,7 @@ from invoice_system.validation import critic as critic_module
 from invoice_system.validation import reconciliation_evaluation as evaluation
 from invoice_system.validation import reconciliation_runner as reconciliation_runner_module
 from invoice_system.validation import reconciliation as reconciliation_module
+from invoice_system.validation import database_runner as database_runner_module
 from invoice_system.validation import graph as graph_module
 from invoice_system.validation.database_tool import InventoryLookup
 from invoice_system.validation.models import (
@@ -220,6 +221,61 @@ def test_database_uses_consolidated_quantity_and_mapping(monkeypatch):
     assert captured == ["Gadget A"]
     assert result.results[0].requested_quantity == Decimal("8")
     assert result.results[0].source_lines == [1, 2]
+
+
+def test_database_runner_preserves_critic_disagreement(monkeypatch):
+    source = ingestion([
+        {"item_name": "WidgetA", "quantity": "8"},
+        {"item_name": "WidgetA (rush order)", "quantity": "4"},
+    ])
+    consolidated = recon(items=[
+        {
+            "product_name": "WidgetA",
+            "normalized_product": "widgeta",
+            "combined_quantity": "12",
+            "source_lines": [1, 2],
+        }
+    ])
+    database_result = DatabaseValidationResult(
+        status=DatabaseStatus.PASS,
+        summary="inventory pass",
+        results=[
+            DatabaseResult(
+                requested_name="WidgetA",
+                attempted_names=["WidgetA"],
+                normalized_product="widgeta",
+                source_lines=[1, 2],
+                matched_item="WidgetA",
+                requested_quantity="12",
+                available_stock=15,
+                product_found=True,
+                inventory_sufficient=True,
+            )
+        ],
+    )
+    monkeypatch.setattr(database_runner_module, "resolve_inventory", lambda *args, **kwargs: database_result)
+    monkeypatch.setattr(
+        database_runner_module,
+        "review_stage",
+        lambda *args, **kwargs: critic(
+            CriticDecision.REVISE,
+            findings=[{
+                "code": "MISSING_LOOKUP_FOR_VARIANT",
+                "message": "rush description was not looked up separately",
+            }],
+            revision_instructions="lookup the variant",
+        ),
+    )
+
+    execution = database_runner_module.run_database_validation(
+        source,
+        reconciliation_result=consolidated,
+    )
+
+    assert not execution.critic_confirmed
+    assert execution.critic_result.decision == CriticDecision.REVISE
+    assert execution.critic_result.findings[0].code == "MISSING_LOOKUP_FOR_VARIANT"
+    assert execution.critic_revision_count == 2
 
 
 def test_reconciliation_scoring_uses_structured_metrics_not_prose():

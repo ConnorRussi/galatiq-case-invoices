@@ -9,6 +9,7 @@ from invoice_system.validation.arithmetic import (
     decimal_sum,
 )
 from invoice_system.validation.database import resolve_inventory
+from invoice_system.validation.database_tool import InventoryLookup
 from invoice_system.validation.models import ReconciliationCheckOutcome, ReconciliationCheckType
 
 
@@ -98,3 +99,83 @@ def test_reconciliation_checks_use_decimal_outcomes_not_model_labels():
     assert checks[1].outcome == ReconciliationCheckOutcome.MATCH
     assert checks[2].check_type == ReconciliationCheckType.TOTAL
     assert checks[2].outcome == ReconciliationCheckOutcome.MISMATCH
+
+
+def test_rush_fulfillment_qualifier_consolidates_identity_but_preserves_lines_and_prices():
+    invoice = NormalizedInvoice.model_validate({
+        "items": [
+            {"item_name": "WidgetA", "quantity": "8", "unit_price": "250", "line_amount": "2000"},
+            {"item_name": "WidgetA (rush order)", "quantity": "4", "unit_price": "300", "line_amount": "1200"},
+        ],
+        "subtotal": "3200",
+    })
+
+    evidence = build_arithmetic_evidence(invoice)
+    consolidated = evidence["consolidated_items"]
+
+    assert len(consolidated) == 1
+    assert consolidated[0]["product_name"] == "WidgetA"
+    assert consolidated[0]["combined_quantity"] == Decimal("12")
+    assert consolidated[0]["derived_line_total"] == Decimal("3200")
+    assert consolidated[0]["source_lines"] == [1, 2]
+    assert consolidated[0]["unit_prices"] == [Decimal("250"), Decimal("300")]
+    assert [(item["source_line"], item["resolved_product"]) for item in evidence["identity_mappings"]] == [
+        (1, "WidgetA"),
+        (2, "WidgetA"),
+    ]
+
+
+def test_unknown_parenthesized_qualifier_remains_separate_and_unresolved():
+    invoice = NormalizedInvoice.model_validate({
+        "items": [
+            {"item_name": "WidgetA", "quantity": "8"},
+            {"item_name": "WidgetA (blue finish)", "quantity": "4"},
+        ],
+    })
+
+    evidence = build_arithmetic_evidence(invoice)
+
+    assert [item["source_lines"] for item in evidence["consolidated_items"]] == [[1], [2]]
+    assert evidence["identity_mappings"][1]["resolution"] == "unresolved_qualifier"
+    assert evidence["identity_mappings"][1]["resolved_product"] is None
+
+
+def test_inventory_checks_consolidated_quantity_against_stock(monkeypatch):
+    ingestion = IngestionResult(
+        status="accept",
+        source_path="controlled.json",
+        normalization=NormalizationResult(invoice={
+            "items": [
+                {"item_name": "WidgetA", "quantity": "8"},
+                {"item_name": "WidgetA (rush order)", "quantity": "8"},
+            ],
+        }, evidence=[]),
+    )
+    # Materialize the same deterministic result used by the graph without a model call.
+    from invoice_system.validation.arithmetic import build_arithmetic_evidence
+    from invoice_system.validation.models import ReconciliationResult
+
+    evidence = build_arithmetic_evidence(ingestion.normalization.invoice)
+    recon = ReconciliationResult.model_validate({
+        "status": "PASS",
+        "summary": "fixture",
+        "consolidated_items": evidence["consolidated_items"],
+        "identity_mappings": evidence["identity_mappings"],
+    })
+    monkeypatch.setattr(
+        "invoice_system.validation.database.lookup_inventory_bulk",
+        lambda names, **kwargs: [InventoryLookup(
+            requested_name=names[0], matched_item="WidgetA", available_stock=15, product_found=True
+        )],
+    )
+
+    database_result = resolve_inventory(
+        ingestion,
+        reconciliation_result=recon,
+        retry_proposer=lambda unresolved: [],
+    )
+
+    assert database_result.status.value == "DENY"
+    assert database_result.issues[0].code == "INSUFFICIENT_INVENTORY"
+    assert database_result.results[0].requested_quantity == Decimal("16")
+    assert database_result.results[0].source_lines == [1, 2]

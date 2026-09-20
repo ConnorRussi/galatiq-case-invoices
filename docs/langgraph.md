@@ -44,7 +44,7 @@ short-circuits this prototype before any future downstream stages.
 | `reconciliation` | immutable ingestion snapshot, revision feedback | `reconciliation_result` | Decimal-backed arithmetic and consolidation specialist |
 | `reconciliation_critic` | ingestion snapshot, reconciliation result | `critic_result`, revision routing | Shared critic; verifies Phase 2 arithmetic and scope |
 | `database` | ingestion snapshot, consolidated Reconciliation items | `database_result` | Bulk inventory lookup and product/quantity checks |
-| `database_critic` | ingestion snapshot, database result | `critic_result`, revision routing | Shared critic; verifies lookup history, identity, and stock conclusion |
+| `database_critic` | ingestion snapshot, database result, accepted reconciliation mappings | `critic_result`, revision routing | Shared critic plus independent coverage/quantity/stock checks; inconsistent agreements require revision |
 | `finalize_valid_for_phase_1` | confirmed semantic PASS | `final_result` | Phase 1 PASS endpoint |
 | `finalize_denied` / `finalize_unresolved` | confirmed DENY or exhausted revisions | `final_result` | Fail closed; unresolved reason is `unresolved_validation` |
 
@@ -86,6 +86,12 @@ ingestion
 Payment is not a LangGraph node and has no model authority. It is a typed local
 side-effect simulation that can only be reached from `ApprovalResult.APPROVED`
 and a payment preflight confirming vendor, amount, and source-confirmed currency.
+
+Within the existing Reconciliation -> Database handoff, deterministic identity
+interpretation runs as a helper rather than a new graph node or agent. Its
+source-line mappings are materialized in `ReconciliationResult`; mapped lines
+are consolidated before Database performs one inventory sufficiency check per
+resolved item. Graph routing and retry bounds are unchanged.
 
 ## Change rules
 

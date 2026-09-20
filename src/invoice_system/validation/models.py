@@ -97,12 +97,24 @@ class ReconciliationCalculation(BaseModel):
     source_lines: list[int] = Field(default_factory=list)
 
 
+class ProductIdentityMapping(BaseModel):
+    """Auditable interpretation of one source line's product identity."""
+
+    source_line: int = Field(ge=1)
+    source_description: str = Field(min_length=1)
+    resolved_product: str | None = None
+    normalized_product: str | None = None
+    qualifier: str | None = None
+    resolution: str = Field(min_length=1)
+
+
 class ReconciliationResult(BaseModel):
     stage: ValidationStage = ValidationStage.RECONCILIATION
     status: ReconciliationStatus
     issues: list[ValidationIssue] = Field(default_factory=list)
     summary: str = Field(min_length=1)
     consolidated_items: list[ConsolidatedItem] = Field(default_factory=list)
+    identity_mappings: list["ProductIdentityMapping"] = Field(default_factory=list)
     calculations: list[ReconciliationCalculation] = Field(default_factory=list)
 
 

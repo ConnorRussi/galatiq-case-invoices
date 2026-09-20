@@ -53,7 +53,10 @@ if the source uses an explicit label such as Total Amount, Grand Total, Invoice
 Total, Amount Due, Balance Due, or Total Due, require the claim in the corresponding
 typed field rather than only in amount_raw. Do not flag OCR normalization when the raw source claim remains in evidence or an additional
 field. Do not flag correctly preserved source mistakes, values left null because
-they are ambiguous, arithmetic mismatches, or missing derived values.
+they are ambiguous, arithmetic mismatches, or missing derived values. A
+currency of USD with `additional_fields.currency_source` equal to
+`policy_default` is authorized when the source has no currency claim and does
+not require source evidence. Do not ask for evidence for that policy default.
 Do not flag formatting-equivalent Decimal values.
 
 Review each candidate independently against the unchanged source. Propose a

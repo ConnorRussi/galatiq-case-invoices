@@ -8,7 +8,7 @@ from invoice_system.agent_runtime import invoke_structured
 from invoice_system.ingestion.models import IngestionResult
 
 from .arithmetic import build_arithmetic_evidence, build_reconciliation_checks
-from .models import ConsolidatedItem, ReconciliationResult, ValidationStage
+from .models import ConsolidatedItem, ProductIdentityMapping, ReconciliationResult, ValidationStage
 
 
 RECONCILIATION_SCOPE_CONTRACT = """
@@ -108,6 +108,10 @@ def validate_reconciliation(
             "consolidated_items": [
                 ConsolidatedItem.model_validate(item)
                 for item in evidence["consolidated_items"]
+            ],
+            "identity_mappings": [
+                ProductIdentityMapping.model_validate(item)
+                for item in evidence["identity_mappings"]
             ],
             "calculations": build_reconciliation_checks(ingestion.normalization.invoice),
         }

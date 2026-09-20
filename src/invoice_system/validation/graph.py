@@ -114,6 +114,7 @@ def database_critic_node(state: ValidationState) -> dict:
         ingestion,
         ValidationStage.DATABASE,
         database_result,
+        reconciliation_result=state.get("reconciliation_result"),
         previous_critic=state.get("database_critic_result"),
         revision_count=revision_count,
         revision_feedback=state.get("revision_feedback"),

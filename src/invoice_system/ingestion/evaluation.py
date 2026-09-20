@@ -169,6 +169,11 @@ def _evidence_section(result: IngestionResult) -> EvalSection:
     chunks = {chunk.id: chunk.text for chunk in result.source_document.chunks}
     source_text_by_id = {chunk_id: _squash(text) for chunk_id, text in chunks.items()}
     field_paths = set(_populated_field_paths(result.normalization))
+    if result.normalization.invoice.additional_fields.get("currency_source") == "policy_default":
+        field_paths.discard("currency")
+        field_paths.discard("additional_fields.currency_source")
+    if result.normalization.invoice.additional_fields.get("currency_conflict"):
+        field_paths.discard("additional_fields.currency_conflict")
     evidence_by_path = {evidence.field_path: evidence for evidence in result.normalization.evidence}
     if len(evidence_by_path) != len(result.normalization.evidence):
         section.passed = False

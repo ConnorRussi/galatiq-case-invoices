@@ -71,10 +71,20 @@ the change explicitly includes a migration plan.
 Phase 2 adds `ReconciliationResult`, `ConsolidatedItem`, and
 `ReconciliationCalculation` in [`validation/models.py`](../src/invoice_system/validation/models.py).
 The result contains a `PASS`/`DENY` status, structured issue codes and fields,
-consolidated product identity/quantity/source lines, and Decimal-safe
-calculation records. It owns invoice arithmetic and duplicate consolidation;
+consolidated product identity/quantity/source lines, an `identity_mappings`
+list of `ProductIdentityMapping` records, and Decimal-safe calculation records.
+Each mapping retains the source line and description, the resolved product when
+supported, any fulfillment qualifier, and a resolution reason. It owns invoice
+arithmetic and duplicate consolidation;
 inventory, database lookup, approval thresholds, and payment policy remain
 later-stage concerns.
+
+Identity mapping is conservative and deterministic: `rush order` is treated as
+a fulfillment qualifier only when its unqualified product is also present in
+the invoice. Other parenthesized text is not stripped. A consolidated item
+retains all source lines and observed unit prices; its derived amount is the
+sum of each original line's Decimal quantity-times-price, never an average or
+selected group price.
 
 ## Database contracts
 
@@ -85,6 +95,21 @@ source lines, matched database identity, requested quantity, and available
 stock. Database validation owns product existence, identity association, and
 inventory sufficiency; it does not redo Semantic checks, arithmetic, or
 consolidation.
+
+Database review independently checks that every named invoice line occurs
+exactly once in `DatabaseResult.source_lines`, recomputes requested quantities
+from original lines with Decimal, and checks stock conclusions. A PASS requires
+matched identities and sufficient stock. Repeated matched identities must be
+aggregated. These checks can require REVISE but never force AGREE or prove identity.
+A fulfillment-qualified description does not require a separate lookup when
+Reconciliation mapped its source line to the same inventory identity.
+
+The shared critic receives reconciliation mappings in both the main graph and
+standalone database runner. An AGREE with revision instructions, or error
+findings against a specialist PASS, becomes REVISE with a
+`CRITIC_CONTRADICTION` finding and the original findings retained. A supported
+DENY may still receive AGREE with findings explaining that denial. Repeated
+disagreement exhausts the existing revision bound and stops before approval.
 
 ## Approval contracts
 
@@ -107,8 +132,11 @@ mock payment boundary; the approval runner itself does not perform payment.
 required three-letter ISO currency code. The amount is selected from `amount_due`
 first and falls back to `invoice_total`. `PaymentResult` records `SUCCESS` or
 `FAILED`, the attempted payment values, optional mock transaction ID, and reason.
-An invoice without source-confirmed currency is blocked before the provider is
-called.
+An invoice with no currency claim receives the authorized USD policy default;
+the default is marked in `additional_fields.currency_source` and does not carry
+source evidence. Conflicting currency claims are preserved in
+`additional_fields.currency_conflict`, leave currency unresolved, and require
+review before downstream use.
 
 `WorkflowResult` is the terminal end-to-end contract. Its status is one of
 `APPROVED_AND_PAID`, `VALIDATION_DENIED`, `APPROVAL_REJECTED`, `PAYMENT_FAILED`,

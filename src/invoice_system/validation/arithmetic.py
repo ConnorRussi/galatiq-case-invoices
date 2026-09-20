@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections import defaultdict
 from decimal import Decimal
-import re
 from typing import Any
 
 from invoice_system.ingestion.models import NormalizedInvoice
@@ -14,6 +13,8 @@ from .models import (
     ReconciliationCheckOutcome,
     ReconciliationCheckType,
 )
+from .arithmetic_types import normalize_product_name
+from .identity import resolve_product_identities
 
 
 def decimal_sum(values: list[Decimal]) -> Decimal:
@@ -30,14 +31,6 @@ def decimal_multiply(left: Decimal, right: Decimal) -> Decimal:
     return left * right
 
 
-def normalize_product_name(value: str | None) -> str:
-    """Create a stable identity for consolidation, without changing source names."""
-
-    if not value:
-        return ""
-    return re.sub(r"[^a-z0-9]+", " ", value.casefold()).strip()
-
-
 def build_arithmetic_evidence(invoice: NormalizedInvoice) -> dict[str, Any]:
     """Return deterministic calculations for an LLM specialist or critic.
 
@@ -50,6 +43,8 @@ def build_arithmetic_evidence(invoice: NormalizedInvoice) -> dict[str, Any]:
     groups: dict[str, dict[str, Any]] = defaultdict(
         lambda: {"product_name": "", "source_lines": [], "quantities": [], "prices": [], "derived_total": Decimal("0")}
     )
+    identity_mappings = resolve_product_identities(invoice)
+    mapping_by_line = {mapping.source_line: mapping for mapping in identity_mappings}
     for index, item in enumerate(invoice.items, start=1):
         calculated = None
         if item.quantity is not None and item.unit_price is not None:
@@ -65,11 +60,16 @@ def build_arithmetic_evidence(invoice: NormalizedInvoice) -> dict[str, Any]:
         }
         lines.append(line)
 
-        identity = normalize_product_name(item.item_name)
+        mapping = mapping_by_line.get(index)
+        identity = (
+            mapping.normalized_product
+            if mapping and mapping.normalized_product
+            else normalize_product_name(item.item_name)
+        )
         if not identity:
             continue
         group = groups[identity]
-        group["product_name"] = group["product_name"] or item.item_name or identity
+        group["product_name"] = group["product_name"] or (mapping.resolved_product if mapping else None) or item.item_name or identity
         group["source_lines"].append(index)
         if item.quantity is not None:
             group["quantities"].append(item.quantity)
@@ -111,6 +111,7 @@ def build_arithmetic_evidence(invoice: NormalizedInvoice) -> dict[str, Any]:
 
     return {
         "lines": lines,
+        "identity_mappings": [mapping.__dict__ for mapping in identity_mappings],
         "consolidated_items": consolidated,
         "calculated_subtotal": calculated_subtotal,
         "declared_subtotal": invoice.subtotal,

@@ -21,6 +21,13 @@ workflow once for every source file listed in
 
 ## What is checked
 
+[`test_database_handoff.py`](../tests/test_database_handoff.py) exercises the
+actual CLI validation graph with controlled model responses and local SQLite.
+It verifies delivery of identity mappings, rush-order quantities/prices/totals,
+immutable inputs, missing and duplicate coverage, incorrect quantities and
+stock claims, unresolved identities, contradictory agreements, and retention
+of genuine critic disagreement. Live model acceptance remains a separate check.
+
 The evaluator runs expected fixtures under
 [`evals/ingestion/expected/`](../evals/ingestion/expected/) and compares status,
 typed scalar fields, line items, additional fields, and source evidence. It
@@ -43,9 +50,11 @@ The test suite complements this with focused regression tests:
   structured scoring, critic revision reporting, per-case isolation, and
   ingestion-golden immutability.
 - [`test_arithmetic.py`](../tests/test_arithmetic.py) checks Decimal-safe sums,
-  subtraction, multiplication, and repeated-product evidence.
+  subtraction, multiplication, repeated-product evidence, conservative
+  fulfillment-qualifier identity mapping, and aggregate inventory checks.
 - [`test_reconciliation.py`](../tests/test_reconciliation.py) checks Phase 2
-  critic input, Semantic short-circuiting, and full-stage routing.
+  critic input, Semantic short-circuiting, full-stage routing, and database
+  critic handling of consolidated fulfillment-qualified source lines.
 
 Validation tests stub the shared structured model boundary; they exercise the
 actual Semantic -> Reconciliation LangGraph and do not require live provider
@@ -176,6 +185,13 @@ The shared `events.jsonl` is also scored: a `vp_agent` `invoked` or `decision`
 event must exist exactly when the case expects VP review. The approval runner
 records the `invoked` event before the VP model call, so failed VP attempts are
 still auditable.
+
+The workflow cases `invoice_1006.csv` and `invoice_1015.csv` intentionally omit
+a currency claim. They now expect the authorized USD policy default and the
+normal approved-and-paid terminal outcome. Focused ingestion regressions cover
+the dollar-symbol mapping, absent-currency default, explicit non-USD
+preservation, conflicting-claim review, and rejection of `PO amendment` as a
+fabricated purchase-order identifier.
 
 ### Synthetic VP workflow corpus
 

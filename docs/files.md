@@ -34,6 +34,8 @@ bytecode, local credentials, and build metadata are intentionally omitted.
 | [`src/invoice_system/validation/evaluation.py`](../src/invoice_system/validation/evaluation.py) | End-to-end Validation Agent scoring, routing checks, artifacts, and terminal output |
 | [`src/invoice_system/validation/reconciliation.py`](../src/invoice_system/validation/reconciliation.py) | Phase 2 specialist and scope contract |
 | [`src/invoice_system/validation/arithmetic.py`](../src/invoice_system/validation/arithmetic.py) | Decimal-safe arithmetic and consolidation evidence |
+| [`src/invoice_system/validation/identity.py`](../src/invoice_system/validation/identity.py) | Conservative source-line product-identity interpretation and auditable mappings |
+| [`src/invoice_system/validation/arithmetic_types.py`](../src/invoice_system/validation/arithmetic_types.py) | Shared lexical product-name normalization primitive |
 | [`src/invoice_system/validation/reconciliation_evaluation.py`](../src/invoice_system/validation/reconciliation_evaluation.py) | Reusable structured Phase 2 scoring helper used by the Validation Agent evaluator |
 | [`src/invoice_system/validation/reconciliation_runner.py`](../src/invoice_system/validation/reconciliation_runner.py) | Phase 2 execution boundary used by validation runtime/tests |
 | [`src/invoice_system/validation/database.py`](../src/invoice_system/validation/database.py) | Agent-directed, bounded inventory lookup rounds and database scope prompt |
@@ -45,6 +47,9 @@ bytecode, local credentials, and build metadata are intentionally omitted.
 | [`src/invoice_system/payment/`](../src/invoice_system/payment/) | Typed local mock payment boundary and audit logging |
 
 ## Inputs and verification
+
+[`tests/test_database_handoff.py`](../tests/test_database_handoff.py) covers
+the production validation graph's reconciliation-to-database-critic handoff.
 
 | Path | Role |
 | --- | --- |
