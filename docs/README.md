@@ -4,7 +4,6 @@ This repository is a local, evidence-preserving invoice-processing prototype. It
 
 The implementation is deliberately fail-closed. A model may propose structured reasoning, but typed contracts, deterministic arithmetic, SQLite lookups, approval gates, the invoice-history ledger, and payment preflight control what can happen next.
 
-> **Repository boundary:** this guide describes the project in `galatiq-case-invoices/`. The parent workspace file `C:\Galatiq\main.py` is a separate wrapper with a different PDF-generation CLI. Run the commands below from `galatiq-case-invoices/`.
 
 ## Project Overview
 
