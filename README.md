@@ -40,7 +40,7 @@ The code and tests are the source of truth. The main orchestration is in [`src/i
 
 - PDF native text, TXT, Markdown, CSV, JSON, and XML source handling.
 - Immutable source chunks and field-level evidence.
-- LLM structured extraction and policy reasoning through the TAMUS-compatible chat endpoint.
+- LLM structured extraction and policy reasoning through selectable Grok or TAMUS-compatible chat endpoints.
 - Bounded ingestion and validation critic/revision loops.
 - Decimal reconciliation and auditable SQLite inventory lookups.
 - Duplicate suppression, paid-revision routing, approval policy, and VP review.

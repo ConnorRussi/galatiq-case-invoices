@@ -9,6 +9,5 @@
 - `logs/`: generated normal-run and evaluation artifacts.
 - `docs/`: human and reviewer documentation, including retained implementation guides.
 - `inventory.sqlite`: local inventory database used by default.
-- `Validation/`: repository fixture/working area; inspect before adding new durable files.
 
 Within `src/invoice_system`, `ingestion`, `validation`, `approval`, and `payment` own their domains. `workflow.py`, `invoice_ledger.py`, and `agent_runtime.py` are shared boundaries.

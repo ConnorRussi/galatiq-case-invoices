@@ -93,7 +93,7 @@ The full boundary discussion is in [architecture/agent-contracts.md](architectur
 
 ## Critic And Revision Behavior
 
-Ingestion and each validation stage have bounded specialist/critic loops. The critic returns `AGREE` or `REVISE`. A revision receives the critic's instructions and the previous result. Ingestion uses `MAX_REVISIONS = 2`; validation uses `MAX_CRITIC_REVISIONS = 2` independently for Semantic, Reconciliation, and Database. Exhausted or unstable disagreement is denied as `unresolved_validation` rather than silently accepted. The shared transport's one schema-correction request is a separate mechanism and does not make a business decision.
+Ingestion and each validation stage have bounded specialist/critic loops. The critic returns `AGREE` or `REVISE`. A revision receives the critic's instructions and the previous result. Ingestion uses `MAX_REVISIONS = 2`; exhausted or unstable ingestion disagreement ends as `NEEDS_REVIEW`. Validation uses `MAX_CRITIC_REVISIONS = 2` independently for Semantic, Reconciliation, and Database; exhausted validation disagreement is denied as `unresolved_validation` rather than silently accepted. The shared transport's one schema-correction request is a separate mechanism and does not make a business decision.
 
 Approval has no critic/revision loop. Business-rule and VP outputs are schema-validated, but an approval failure is a technical failure and a VP human-review result is terminal for this CLI.
 
