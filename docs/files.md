@@ -69,4 +69,4 @@ the production validation graph's reconciliation-to-database-critic handoff.
 - `dashboard_template.html`: self-contained invoice review and evaluation interface.
 - `docs/dashboard.md`: usage, artifact contract, and deferred decisions.
 - `tests/test_dashboard.py`: offline artifact and HTML safety checks.
-- `runs/dashboard.html`: generated local snapshot, excluded from version control.
+- `dashboard.html`: generated local snapshot, excluded from version control.

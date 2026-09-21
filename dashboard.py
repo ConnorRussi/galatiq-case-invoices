@@ -50,7 +50,7 @@ def build_dashboard(logs: Path, output: Path) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--logs-root", type=Path, default=ROOT / "logs")
-    parser.add_argument("--output", type=Path, default=ROOT / "runs" / "dashboard.html")
+    parser.add_argument("--output", type=Path, default=ROOT / "dashboard.html")
     args = parser.parse_args()
     data = build_dashboard(args.logs_root, args.output)
     print(f"Dashboard: {args.output.resolve()}")

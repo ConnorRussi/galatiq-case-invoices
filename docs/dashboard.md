@@ -6,7 +6,7 @@ Build and open a local, display-only snapshot:
 python dashboard.py
 ```
 
-Open `runs/dashboard.html` in a browser. Rebuild after processing new invoices.
+Open `dashboard.html` in a browser. Rebuild after processing new invoices.
 No server, installation, credentials, external assets, or model calls are needed.
 Optional `--logs-root` and `--output` arguments select the artifact tree and output.
 

@@ -100,4 +100,4 @@ or VP audit expectation does not match.
 
 ## Local dashboard
 
-Run `python dashboard.py`, then open `runs/dashboard.html`. Rebuild to refresh the snapshot. This requires only the Python standard library and makes no network or model calls. See [dashboard](dashboard.md).
+Run `python dashboard.py`, then open `dashboard.html`. Rebuild to refresh the snapshot. This requires only the Python standard library and makes no network or model calls. See [dashboard](dashboard.md).

@@ -171,4 +171,4 @@ Submit your solution as a link to a public GitHub repository — GitHub only (gi
 
 ## Invoice review dashboard
 
-Run `python dashboard.py` and open `runs/dashboard.html` for a display-only invoice list, review details, and workflow evaluation results. Rebuild after new runs. No model calls or server are needed. See [dashboard guide](docs/dashboard.md).
+Run `python dashboard.py` and open `dashboard.html` for a display-only invoice list, review details, and workflow evaluation results. Rebuild after new runs. No model calls or server are needed. See [dashboard guide](docs/dashboard.md).
