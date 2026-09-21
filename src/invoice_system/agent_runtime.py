@@ -1,4 +1,4 @@
-﻿"""Shared structured calls through the TAMUS AI Chat API."""
+﻿"""Shared structured calls for the selectable Grok and TAMUS providers."""
 
 import json
 import logging
@@ -20,17 +20,31 @@ class StructuredOutputError(ModelInvocationError):
     """The model response remained invalid after the schema correction retry."""
 
 
-@traceable(name="TAMUS structured output", run_type="llm")
+@traceable(name="Structured LLM output", run_type="llm")
 def invoke_structured[T: BaseModel](
-    *, system_prompt: str, content: str, output_model: type[T], model: str | None = None
+    *, system_prompt: str, content: str, output_model: type[T]
 ) -> T:
-    api_key = os.getenv("TAMUS_AI_CHAT_API_KEY")
-    selected_model = model or os.getenv("TAMUS_AI_CHAT_MODEL")
-    if not api_key or not selected_model:
-        raise ModelInvocationError(
-            "Set TAMUS_AI_CHAT_API_KEY and TAMUS_AI_CHAT_MODEL in the environment or .env"
-        )
-    endpoint = os.getenv("TAMUS_AI_CHAT_API_ENDPOINT", "https://chat-api.tamu.ai").rstrip("/")
+    provider = os.getenv("LLM_PROVIDER", "grok").lower()
+    if provider == "tamu":
+        api_key = os.getenv("TAMUS_AI_CHAT_API_KEY")
+        selected_model = os.getenv("TAMUS_AI_CHAT_MODEL")
+        endpoint = os.getenv("TAMUS_AI_CHAT_API_ENDPOINT", "https://chat-api.tamu.ai").rstrip("/")
+        chat_path = "/api/chat/completions"
+        provider_name = "TAMUS"
+    elif provider == "grok":
+        api_key = os.getenv("XAI_API_KEY")
+        selected_model = os.getenv("XAI_MODEL", "grok-3-mini")
+        endpoint = os.getenv("XAI_API_ENDPOINT", "https://api.x.ai/v1").rstrip("/")
+        chat_path = "/chat/completions"
+        provider_name = "Grok"
+    else:
+        raise ModelInvocationError(f"Unsupported LLM_PROVIDER: {provider}")
+    if not api_key:
+        key_name = "TAMUS_AI_CHAT_API_KEY" if provider == "tamu" else "XAI_API_KEY"
+        raise ModelInvocationError(f"Set {key_name} in the environment or .env")
+    if not selected_model:
+        model_name = "TAMUS_AI_CHAT_MODEL" if provider == "tamu" else "XAI_MODEL"
+        raise ModelInvocationError(f"Set {model_name} in the environment or .env")
     try:
         prompt = system_prompt
         for schema_attempt in range(2):
@@ -38,6 +52,7 @@ def invoke_structured[T: BaseModel](
                 api_key=api_key,
                 endpoint=endpoint,
                 model=selected_model,
+                chat_path=chat_path,
                 system_prompt=prompt,
                 content=content,
                 output_model=output_model,
@@ -47,7 +62,7 @@ def invoke_structured[T: BaseModel](
             except ValidationError as exc:
                 if schema_attempt:
                     raise StructuredOutputError(
-                        f"TAMUS returned invalid structured output after schema retry: {exc}"
+                        f"{provider_name} returned invalid structured output after schema retry: {exc}"
                     ) from exc
                 logger.warning("[model] Structured output failed schema validation; requesting one correction")
                 prompt = (
@@ -60,7 +75,7 @@ def invoke_structured[T: BaseModel](
     except ModelInvocationError:
         raise
     except Exception as exc:
-        raise ModelInvocationError(f"TAMUS invocation failed ({selected_model}): {exc}") from exc
+        raise ModelInvocationError(f"{provider_name} invocation failed ({selected_model}): {exc}") from exc
 
 
 def _request_structured_text[T: BaseModel](
@@ -68,6 +83,7 @@ def _request_structured_text[T: BaseModel](
     api_key: str,
     endpoint: str,
     model: str,
+    chat_path: str,
     system_prompt: str,
     content: str,
     output_model: type[T],
@@ -85,12 +101,12 @@ def _request_structured_text[T: BaseModel](
             {"role": "user", "content": content},
         ],
     }
-    # The TAMUS quickstart does not promise server-side JSON schema enforcement.
+    # Keep local validation because model and endpoint capabilities can vary.
     with httpx.Client(timeout=120) as client:
         for attempt in range(3):
             try:
                 response = client.post(
-                    endpoint + "/api/chat/completions",
+                    endpoint + chat_path,
                     headers={"Authorization": f"Bearer {api_key}"},
                     json=payload,
                 )
@@ -109,8 +125,8 @@ def _request_structured_text[T: BaseModel](
     body = response.json()
     choice = body["choices"][0]
     if choice.get("finish_reason") not in {None, "stop"}:
-        raise ModelInvocationError(f"TAMUS response did not finish normally: {choice['finish_reason']}")
+        raise ModelInvocationError(f"LLM response did not finish normally: {choice['finish_reason']}")
     text = choice["message"]["content"]
     if not isinstance(text, str) or not text.strip():
-        raise ModelInvocationError("TAMUS returned no structured text")
+        raise ModelInvocationError("LLM returned no structured text")
     return text

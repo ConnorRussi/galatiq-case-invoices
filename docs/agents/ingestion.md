@@ -18,7 +18,7 @@ Input is a path to PDF, TXT, Markdown, CSV, JSON, or XML. Output is [`IngestionR
 
 - `pdfplumber` extracts native PDF text; OCR is unavailable.
 - Python CSV, JSON, XML, and UTF-8 readers represent non-PDF formats.
-- `invoke_structured` calls the configured TAMUS-compatible model.
+- `invoke_structured` calls the configured xAI Grok model.
 - `normalization_policy.md` constrains field mapping, evidence, ambiguity, and preservation.
 - `run_logging.py` writes source, normalized, critique, and result artifacts.
 

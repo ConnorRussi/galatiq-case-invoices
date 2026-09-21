@@ -1,7 +1,6 @@
 """Small structured-output agents for approval decisions."""
 
 import json
-import os
 from typing import Any
 
 from ..agent_runtime import invoke_structured
@@ -45,7 +44,6 @@ adjustment is appropriate."""
         system_prompt=system_prompt,
         content=content,
         output_model=BusinessRuleDecision,
-        model=os.getenv("BUSINESS_RULE_MODEL") or os.getenv("TAMUS_AI_CHAT_MODEL"),
     )
 
 
@@ -75,13 +73,6 @@ another full payment for the revised invoice."""
         system_prompt=system_prompt,
         content=content,
         output_model=VPDecision,
-        model=(
-            os.getenv("VP_REASONING_MODEL")
-            or os.getenv("VP_REASONING_MODEL-NAME")  # legacy local spelling
-            or os.getenv("VP_MODEL")
-            or os.getenv("BUSINESS_RULE_MODEL")
-            or os.getenv("TAMUS_AI_CHAT_MODEL")
-        ),
     )
     if request.invoice_history is not None and request.invoice_history.requires_human_review:
         return result.model_copy(update={

@@ -140,7 +140,7 @@ From `galatiq-case-invoices/`:
 python -m pip install -e ".[ingestion,ingestion-dev]"
 ```
 
-Copy `.env.example` to `.env` and set `TAMUS_AI_CHAT_API_KEY` and `TAMUS_AI_CHAT_MODEL`. The endpoint defaults to `https://chat-api.tamu.ai`; `TAMUS_AI_CHAT_API_ENDPOINT` overrides it. `inventory.sqlite` is the default database. Use `--database-path` and `--ledger-path` for explicit paths.
+Copy `.env.example` to `.env` and set `XAI_API_KEY`. The model defaults to `grok-3-mini`; `XAI_MODEL` and `XAI_API_ENDPOINT` can override the defaults. `inventory.sqlite` is the default database. Use `--database-path` and `--ledger-path` for explicit paths.
 
 ```bash
 python main.py --invoice_path=data/invoices/invoice_1001.txt

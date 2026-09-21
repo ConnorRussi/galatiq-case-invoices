@@ -30,7 +30,7 @@ flowchart TD
 
 ## Model boundary
 
-[`agent_runtime.py`](../../src/invoice_system/agent_runtime.py) is the only shared TAMUS-compatible transport. It supplies Pydantic JSON Schema in the system message, validates returned JSON locally, retries selected transient failures three times total, and requests one schema correction. Stage critics are separate application-level loops.
+[`agent_runtime.py`](../../src/invoice_system/agent_runtime.py) is the only shared xAI Grok transport. It supplies Pydantic JSON Schema in the system message, validates returned JSON locally, retries selected transient failures three times total, and requests one schema correction. Stage critics are separate application-level loops.
 
 The architecture intentionally combines nondeterministic interpretation with deterministic controls. Model output proposes normalization, semantic conclusions, retry names, and approval reasoning. Frozen source models, Pydantic validation, Decimal calculations, SQL lookups, status gates, ledger claims, and payment preflight constrain the effects of those proposals.
 

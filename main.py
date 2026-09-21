@@ -24,6 +24,11 @@ def main() -> int:
     load_dotenv(ROOT / ".env")
     parser = argparse.ArgumentParser(description="Run invoice processing or an evaluation suite")
     parser.add_argument("--invoice_path")
+    parser.add_argument(
+        "-tamu",
+        action="store_true",
+        help="Use the TAMUS AI provider instead of the default Grok provider",
+    )
     parser.add_argument("--eval-ingestion", action="store_true")
     parser.add_argument(
         "--eval-approval",
@@ -67,6 +72,7 @@ def main() -> int:
         help="SQLite invoice-history/payment ledger used for duplicate and revision checks",
     )
     args = parser.parse_args()
+    os.environ["LLM_PROVIDER"] = "tamu" if args.tamu else "grok"
     validation_eval_flags = (args.eval_validation, args.eval_semantic, args.eval_reconciliation)
     if args.eval_ingestion and (args.eval_approval or args.eval_workflow or any(validation_eval_flags)):
         parser.error("choose only one evaluation mode")

@@ -28,5 +28,4 @@ ingestion-dev = [
 where = ["src"]
 
 [tool.setuptools.package-data]
-invoice_system.ingestion = ["*.md"]
-invoice_system.approval = ["*.md"]
+invoice_system = ["ingestion/*.md", "approval/*.md"]

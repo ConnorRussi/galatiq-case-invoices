@@ -10,10 +10,11 @@ Use Python 3.13 or later from this directory:
 python -m pip install -e ".[ingestion,ingestion-dev]"
 ```
 
-Copy `.env.example` to `.env` and set `TAMUS_AI_CHAT_API_KEY` and `TAMUS_AI_CHAT_MODEL` for model-backed runs. Then run:
+Copy `.env.example` to `.env` and set `XAI_API_KEY` for the default Grok provider. The default model is `grok-3-mini`. To use TAMUS instead, set its `TAMUS_AI_CHAT_*` values and add `-tamu` to the command. Then run:
 
 ```bash
 python main.py --invoice_path=data/invoices/invoice_1001.txt
+python main.py -tamu --invoice_path=data/invoices/invoice_1001.txt
 python main.py --eval-workflow
 python dashboard.py
 ```

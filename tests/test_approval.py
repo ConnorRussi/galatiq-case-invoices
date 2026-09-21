@@ -204,22 +204,26 @@ def test_vp_invocation_is_logged_before_vp_decision(tmp_path, monkeypatch):
     assert [event["event"] for event in vp_events] == ["invoked", "decision"]
 
 
-def test_vp_reasoning_model_takes_precedence(monkeypatch):
-    models = []
+def test_approval_does_not_pass_cross_provider_model_overrides(monkeypatch):
+    calls = []
 
     def fake_invoke(**kwargs):
-        models.append(kwargs["model"])
+        calls.append(kwargs)
         if kwargs["output_model"] is BusinessRuleDecision:
             return BusinessRuleDecision(decision="VP_REVIEW", reasoning="Escalate.")
         return VPDecision(decision="GO", reasoning="Authorize.")
 
+    monkeypatch.setenv("LLM_PROVIDER", "tamu")
+    monkeypatch.setenv("TAMUS_AI_CHAT_MODEL", "tamu-model")
+    monkeypatch.setenv("XAI_MODEL", "must-not-be-used")
     monkeypatch.setenv("VP_REASONING_MODEL", "strong-reasoning-model")
     monkeypatch.setenv("VP_MODEL", "legacy-vp-model")
     monkeypatch.setenv("BUSINESS_RULE_MODEL", "business-model")
     monkeypatch.setattr(agents, "invoke_structured", fake_invoke)
     run_approval(_request(), persist_artifacts=False)
 
-    assert models == ["business-model", "strong-reasoning-model"]
+    assert len(calls) == 2
+    assert all("model" not in call for call in calls)
 
 
 def test_approval_evaluation_scores_final_buckets_without_live_model(tmp_path, monkeypatch):
