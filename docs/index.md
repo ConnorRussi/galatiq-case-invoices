@@ -1,55 +1,37 @@
-# Repository knowledge graph
+# Documentation Index
 
-This is the navigational hub for the invoice-processing repository. It is
-written as a graph: each page describes a system node, names the files that
-implement it, and links to the nodes it depends on or feeds. Humans can read it
-top-to-bottom; agents should use it to locate the smallest relevant context
-before changing code.
+Start with the [reviewer guide](README.md). It is the canonical overview for someone who has not seen the repository. This index routes readers through the maintained topic hierarchy.
 
-## Current system
+## Current System
+
+The normal CLI path is:
 
 ```text
-CLI (main.py)
-  -> ingestion runner -> IngestionResult
-  -> validation runner (Semantic -> Reconciliation -> Database) -> ValidationResult
-  -> approval runner (Business Rule -> optional VP) -> ApprovalResult
-  -> local mock payment -> PaymentResult
-  -> WorkflowResult + shared run artifacts
+main.py
+  -> workflow.run_invoice_workflow
+       -> ingestion.run_ingestion
+       -> InvoiceLedger.register
+       -> validation.run_validation(full graph)
+       -> approval.run_approval
+       -> payment.run_payment(mock provider)
+       -> WorkflowResult and shared artifacts
 ```
 
-The implemented boundaries include evidence-preserving ingestion, full
-validation, approval, and local mock payment. The normal CLI wires them together
-with fail-closed routing; isolated stage evaluations remain available.
+The code and tests are the source of truth. These pages explain the current implementation without creating a second specification.
 
-## Start here
+## Documentation Map
 
-- [Architecture](architecture.md) — boundaries, data flow, and implemented vs planned.
-- [File map](files.md) — what each durable file and directory is for.
-- [Ingestion](ingestion.md) — reading, normalization, critique, revision, and statuses.
-- [Validation](agents/validation/overview.md) — semantic validation, shared critic, and bounded routing.
-- [LangGraph workflow](langgraph.md) — nodes, state, routes, and invariants.
-- [Contracts](contracts.md) — Pydantic models and evidence relationships.
-- [Runtime](runtime.md) — model calls, configuration, retries, and artifacts.
-- [Evaluation](evaluation.md) — goldens, challenge checks, commands, and outputs.
+| Area | Pages |
+| --- | --- |
+| Architecture | [Overview](architecture/overview.md), [pipeline](architecture/pipeline.md), [contracts](architecture/agent-contracts.md), [models](architecture/data-models.md), [state flow](architecture/state-and-data-flow.md), [design decisions](architecture/design-decisions.md) |
+| Agents | [Ingestion](agents/ingestion.md), [Validation](agents/validation.md), [Business Rules](agents/business-rules.md), [VP Approval](agents/vp-approval.md), [Decision routing](agents/decision.md), [Invoice history](agents/invoice-history.md), [Payment](agents/payment.md), [Dashboard](agents/dashboard.md) |
+| Evaluation | [Overview](evaluation/overview.md), [Ingestion](evaluation/ingestion-eval.md), [Validation](evaluation/validation-eval.md), [Approval](evaluation/approval-eval.md), [Running](evaluation/running-evals.md) |
+| Development | [Setup](development/setup.md), [Running](development/running.md), [Configuration](development/configuration.md), [Debugging](development/debugging.md), [Repository structure](development/repository-structure.md) |
+| Reference | [Issue codes](reference/issue-codes.md), [Normalization policy](reference/normalization-policy.md), [Glossary](reference/glossary.md) |
 
-## Agent-domain extensions
+## Scope Labels
 
-Each later workflow domain gets its own folder so its purpose, contracts,
-tools, policies, and acceptance checks can grow without making this hub a
-single long document.
-
-- [Validation agent](agents/validation/overview.md) — Semantic, Reconciliation, and Database stages; business rules are planned.
-- [Acceptance agent](agents/acceptance/overview.md) — approval decision boundary, workflow handoff, and isolated evaluation.
-- [Payment](payment.md) — local payment simulation, contracts, and failure behavior.
-- [Agent documentation maintenance](agent-maintenance.md) — page template and checklist.
-
-## Graph vocabulary
-
-- **Node**: a runtime component, contract, artifact, test suite, or future agent domain.
-- **Edge**: a dependency, handoff, route, or ownership relationship expressed with a link or `->`.
-- **Source of truth**: current Python code and tests for behavior; these docs explain and connect it.
-- **Planned**: an intentional extension point with no shipped implementation.
-
-## Review interface
-
-- [Invoice review dashboard](dashboard.md) ? local display-only HTML snapshot of saved runs and workflow evaluations.
+- **Implemented** means the current source has an execution path and tests or evaluator coverage.
+- **Simulated** means the behavior is intentionally local and has no external side effect, as with payment.
+- **Read-only** means the component displays saved state but cannot change it, as with the dashboard.
+- **Not built** means the code does not claim to provide the capability, such as OCR or dashboard-driven human decisions.
