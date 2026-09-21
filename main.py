@@ -61,6 +61,11 @@ def main() -> int:
         default=os.getenv("INVENTORY_DATABASE_PATH"),
         help="SQLite inventory database used by the validation stage",
     )
+    parser.add_argument(
+        "--ledger-path",
+        default=os.getenv("INVOICE_LEDGER_PATH"),
+        help="SQLite invoice-history/payment ledger used for duplicate and revision checks",
+    )
     args = parser.parse_args()
     validation_eval_flags = (args.eval_validation, args.eval_semantic, args.eval_reconciliation)
     if args.eval_ingestion and (args.eval_approval or args.eval_workflow or any(validation_eval_flags)):
@@ -91,6 +96,7 @@ def main() -> int:
     result = run_invoice_workflow(
         args.invoice_path,
         database_path=database_path,
+        ledger_path=args.ledger_path,
         artifact_context=context,
         progress_callback=print,
     )

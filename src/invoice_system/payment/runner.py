@@ -66,6 +66,7 @@ def run_payment(
             vendor=request.vendor,
             amount=str(request.amount),
             currency=request.currency,
+            idempotency_key=request.idempotency_key,
         )
 
     try:
@@ -80,6 +81,7 @@ def run_payment(
             amount=request.amount,
             currency=request.currency,
             transaction_id=str(response.get("transaction_id") or f"mock-{uuid4().hex[:12]}"),
+            idempotency_key=request.idempotency_key,
             reason="Mock payment completed successfully.",
         )
     except Exception as exc:
@@ -89,6 +91,7 @@ def run_payment(
             vendor=request.vendor,
             amount=request.amount,
             currency=request.currency,
+            idempotency_key=request.idempotency_key,
             reason=str(exc),
         )
 

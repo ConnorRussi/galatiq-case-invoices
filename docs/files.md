@@ -45,6 +45,7 @@ bytecode, local credentials, and build metadata are intentionally omitted.
 | [`src/invoice_system/approval/evaluation.py`](../src/invoice_system/approval/evaluation.py) | Approval routing and final-bucket evaluator |
 | [`src/invoice_system/workflow_evaluation.py`](../src/invoice_system/workflow_evaluation.py) | Live end-to-end workflow scoring and VP audit-event checks |
 | [`src/invoice_system/payment/`](../src/invoice_system/payment/) | Typed local mock payment boundary and audit logging |
+| [`src/invoice_system/invoice_ledger.py`](../src/invoice_system/invoice_ledger.py) | Durable invoice identity, revision history, duplicate suppression, and payment claims |
 
 ## Inputs and verification
 

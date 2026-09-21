@@ -13,6 +13,19 @@ logger = logging.getLogger(__name__)
 
 def business_rule_node(state: ApprovalState) -> dict:
     decision = business_rule_agent(state["request"])
+    history = state["request"].invoice_history
+    if history is not None and history.requires_human_review:
+        decision = decision.model_copy(update={
+            "decision": "VP_REVIEW",
+            "triggered_rules": [
+                *decision.triggered_rules,
+                "paid prior invoice version requires human review",
+            ],
+            "reasoning": (
+                "Invoice history requires VP triage before any payment decision. "
+                + decision.reasoning
+            ),
+        })
     logger.info("[business_rule] %s", decision.decision)
     return {"business_rule_decision": decision}
 
@@ -40,12 +53,16 @@ def complete_node(state: ApprovalState) -> dict:
     vp = state["vp_decision"]
     if business.decision == "VP_REVIEW" and vp is None:
         raise ValueError("VP_REVIEW requires a VP decision")
+    human_review = vp is not None and vp.decision == "HUMAN_REVIEW_REQUIRED"
     approved = vp.decision == "GO" if vp is not None else business.decision == "ACCEPT"
     source = "VP_AGENT" if vp is not None else "BUSINESS_RULE_AGENT"
     reasoning = vp.reasoning if vp is not None else business.reasoning
     return {"result": ApprovalResult(
         invoice_id=state["request"].invoice_id,
-        final_status="APPROVED" if approved else "REJECTED",
+        final_status=(
+            "HUMAN_REVIEW_REQUIRED" if human_review
+            else "APPROVED" if approved else "REJECTED"
+        ),
         decision_source=source,
         business_rule_decision=business,
         vp_decision=vp,

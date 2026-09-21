@@ -14,6 +14,9 @@ Required settings are `TAMUS_AI_CHAT_API_KEY` and `TAMUS_AI_CHAT_MODEL`.
 LangSmith tracing is optional.
 `INVENTORY_DATABASE_PATH` optionally selects the SQLite database; the
 `--database-path` CLI option takes precedence.
+`INVOICE_LEDGER_PATH` optionally selects the durable invoice-history/payment
+ledger; the `--ledger-path` CLI option takes precedence. Normal runs default to
+`logs/invoice_ledger.sqlite`.
 
 Approval model selection uses `BUSINESS_RULE_MODEL` for the Business Rule Agent.
 The VP Agent uses `VP_REASONING_MODEL`, then `VP_MODEL`, then
@@ -29,6 +32,9 @@ The VP Agent uses `VP_REASONING_MODEL`, then `VP_MODEL`, then
   workflow, which returns `TECHNICAL_FAILURE`; it never manufactures approval.
 - Validation denial and approval rejection stop before payment. Payment provider
   failure returns `PAYMENT_FAILED` rather than changing the approval result.
+- Exact paid invoice versions return `DUPLICATE_SUPPRESSED`. Changed versions
+  received after payment route through VP triage and return
+  `HUMAN_REVIEW_REQUIRED`; neither path performs a second payment.
 - Critique revisions are a workflow bound of two, separate from HTTP retries.
 
 ## Run artifacts

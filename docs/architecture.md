@@ -31,19 +31,27 @@ Business Rule/optional VP approval, and approved invoices enter local mock payme
 | Approval | [`approval/graph.py`](../src/invoice_system/approval/graph.py), [`approval/runner.py`](../src/invoice_system/approval/runner.py) | Apply business policy and route escalations to VP review | `ApprovalResult` |
 | Approval evaluation | [`approval/evaluation.py`](../src/invoice_system/approval/evaluation.py) | Score direct decisions, VP routing, and final buckets | `logs/evals/<evaluation_id>/approval/` |
 | Workflow evaluation | [`workflow_evaluation.py`](../src/invoice_system/workflow_evaluation.py) | Run every source invoice through the live end-to-end workflow and score terminal decisions and VP audit events | `logs/evals/<evaluation_id>/workflow/` |
+| Invoice ledger | [`invoice_ledger.py`](../src/invoice_system/invoice_ledger.py) | Track vendor/invoice identity, source versions, payment claims, duplicates, and paid revisions | `InvoiceHistoryDecision` |
 | Payment | [`payment/runner.py`](../src/invoice_system/payment/runner.py) | Execute the local mock payment after approval and persist its result | `PaymentResult` |
 
 ## Data flow
 
 `source path -> SourceDocument -> NormalizationResult -> CritiqueResult ->
-optional revised NormalizationResult -> IngestionResult -> SemanticResult ->
-CriticResult -> ReconciliationResult -> CriticResult -> DatabaseResult ->
-CriticResult -> ValidationResult -> ApprovalResult -> PaymentResult -> WorkflowResult`
+optional revised NormalizationResult -> IngestionResult -> InvoiceHistoryDecision ->
+SemanticResult -> CriticResult -> ReconciliationResult -> CriticResult ->
+DatabaseResult -> CriticResult -> ValidationResult -> ApprovalResult ->
+PaymentResult -> WorkflowResult`
+
+Invoice history is checked after ingestion and before validation. An exact paid
+version is suppressed. A changed version after payment continues through
+validation for evidence, then routes through VP triage to human review and never
+reaches payment automatically.
 
 The approval handoff is `trusted VALID/PASS inputs -> ApprovalRequest ->
-Business Rule Agent -> optional VP Agent -> ApprovalResult`. Only `APPROVED`
-continues to payment. Validation denial, approval rejection, and technical failure
-all stop before payment.
+Business Rule Agent -> optional VP Agent -> ApprovalResult`. A paid prior version
+forces the VP branch to `HUMAN_REVIEW_REQUIRED`; only `APPROVED` continues to
+payment. Validation denial, approval rejection, human review, and technical
+failure all stop before payment.
 
 The source is never rewritten by normalization or critique. Evidence points
 back to source chunk IDs and optional quoted source text. Financial values use

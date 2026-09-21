@@ -5,6 +5,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..ingestion.models import NormalizationResult, SourceDocument
+from ..invoice_ledger import InvoiceHistoryDecision
 
 
 class UpstreamValidationResult(BaseModel):
@@ -43,7 +44,7 @@ class BusinessRuleDecision(BaseModel):
 
 
 class VPDecision(BaseModel):
-    decision: Literal["GO", "NO_GO"]
+    decision: Literal["GO", "NO_GO", "HUMAN_REVIEW_REQUIRED"]
     reasoning: str
     addressed_concerns: list[str] = Field(default_factory=list)
 
@@ -56,11 +57,12 @@ class ApprovalRequest(BaseModel):
     normalization: NormalizationResult
     validation_result: UpstreamValidationResult
     reconciliation_result: UpstreamReconciliationResult
+    invoice_history: InvoiceHistoryDecision | None = None
 
 
 class ApprovalResult(BaseModel):
     invoice_id: str
-    final_status: Literal["APPROVED", "REJECTED"]
+    final_status: Literal["APPROVED", "REJECTED", "HUMAN_REVIEW_REQUIRED"]
     decision_source: Literal["BUSINESS_RULE_AGENT", "VP_AGENT"]
     business_rule_decision: BusinessRuleDecision
     vp_decision: VPDecision | None = None

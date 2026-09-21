@@ -114,24 +114,28 @@ disagreement exhausts the existing revision bound and stops before approval.
 ## Approval contracts
 
 `ApprovalRequest` is the isolated handoff into approval. It contains the
-normalized invoice, optional source document, and trusted upstream validation
-and reconciliation results. `BusinessRuleDecision` is one of `ACCEPT`,
-`REJECT`, or `VP_REVIEW`; `VPDecision` is `GO` or `NO_GO`.
+normalized invoice, optional source document, trusted upstream validation and
+reconciliation results, and the deterministic `InvoiceHistoryDecision` when a
+durable invoice ledger is enabled. `BusinessRuleDecision` is one of `ACCEPT`,
+`REJECT`, or `VP_REVIEW`; `VPDecision` is `GO`, `NO_GO`, or
+`HUMAN_REVIEW_REQUIRED`.
 
 The upstream validation and reconciliation inputs are typed status envelopes;
 arbitrary `Any` payloads are not accepted at this boundary.
 
-`ApprovalResult` is the terminal approval contract. It records `APPROVED` or
-`REJECTED`, the decision source, both structured decisions when applicable, and
-the final reasoning. `APPROVED` authorizes the orchestrator to enter the separate
-mock payment boundary; the approval runner itself does not perform payment.
+`ApprovalResult` is the terminal approval contract. It records `APPROVED`,
+`REJECTED`, or `HUMAN_REVIEW_REQUIRED`, the decision source, both structured
+decisions when applicable, and the final reasoning. Only `APPROVED` authorizes
+the orchestrator to enter the separate mock payment boundary; the approval
+runner itself does not perform payment.
 
 ## Payment and workflow contracts
 
-`PaymentRequest` contains the approved invoice ID, vendor, positive amount, and
-required three-letter ISO currency code. The amount is selected from `amount_due`
-first and falls back to `invoice_total`. `PaymentResult` records `SUCCESS` or
-`FAILED`, the attempted payment values, optional mock transaction ID, and reason.
+`PaymentRequest` contains the approved invoice ID, vendor, positive amount,
+required three-letter ISO currency code, and a derived idempotency key. The
+amount is selected from `amount_due` first and falls back to `invoice_total`.
+`PaymentResult` records `SUCCESS` or `FAILED`, the attempted payment values,
+optional mock transaction ID and idempotency key, and reason.
 An invoice with no currency claim receives the authorized USD policy default;
 the default is marked in `additional_fields.currency_source` and does not carry
 source evidence. Conflicting currency claims are preserved in
@@ -140,5 +144,6 @@ review before downstream use.
 
 `WorkflowResult` is the terminal end-to-end contract. Its status is one of
 `APPROVED_AND_PAID`, `VALIDATION_DENIED`, `APPROVAL_REJECTED`, `PAYMENT_FAILED`,
-or `TECHNICAL_FAILURE`. It records where execution stopped, whether VP review was
-required, the final reason, and all completed stage results.
+`DUPLICATE_SUPPRESSED`, `HUMAN_REVIEW_REQUIRED`, or `TECHNICAL_FAILURE`. It
+records where execution stopped, whether VP review was required, the invoice
+history decision, the final reason, and all completed stage results.

@@ -16,6 +16,7 @@ class PaymentRequest(BaseModel):
     vendor: str = Field(min_length=1)
     amount: Decimal = Field(gt=0)
     currency: str = Field(min_length=3, max_length=3)
+    idempotency_key: str | None = None
 
     @field_validator("currency")
     @classmethod
@@ -33,4 +34,5 @@ class PaymentResult(BaseModel):
     amount: Decimal | None = None
     currency: str | None = None
     transaction_id: str | None = None
+    idempotency_key: str | None = None
     reason: str

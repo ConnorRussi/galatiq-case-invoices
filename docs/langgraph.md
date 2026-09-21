@@ -64,8 +64,10 @@ The standalone approval graph is defined in
 [`approval/graph.py`](../src/invoice_system/approval/graph.py).
 
 The completion node maps direct `ACCEPT` to `APPROVED` and direct `REJECT` to
-`REJECTED`. On the VP branch, `GO` maps to `APPROVED` and `NO_GO` maps to
-`REJECTED`. VP is never invoked for direct business-rule decisions.
+`REJECTED`. A deterministic paid-prior-version control forces the Business Rule
+branch to `VP_REVIEW`; the VP branch returns `HUMAN_REVIEW_REQUIRED` for that
+case regardless of an unsafe model `GO`. Only `APPROVED` can continue to
+payment. VP is never invoked for ordinary direct business-rule decisions.
 
 ## End-to-end routing
 
@@ -74,7 +76,10 @@ connects the existing graphs and deterministic payment boundary:
 
 ```text
 ingestion
-  -> technical failure: stop
+  -> invoice history check
+       -> exact paid duplicate: suppress
+       -> changed version after payment: VP/human review
+       -> technical failure: stop
   -> validation
        -> denied/technical failure: stop
        -> approval

@@ -26,7 +26,8 @@ const esc=v=>String(v??'—').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>'
 const invoice=r=>r.result.ingestion?.normalization?.invoice||{};
 const paid=r=>r.result.status==='APPROVED_AND_PAID';
 const money=(v,c)=>v==null?'—':`${esc(v)} ${esc(c||'(currency unspecified)')}`;
-const badge=r=>`<span class="badge ${paid(r)?'paid':''}">${paid(r)?'Paid — simulated':'Needs review'}</span>`;
+const statusLabels={APPROVED_AND_PAID:'Paid — simulated',DUPLICATE_SUPPRESSED:'Duplicate suppressed',HUMAN_REVIEW_REQUIRED:'Human review required',VALIDATION_DENIED:'Needs review',APPROVAL_REJECTED:'Approval declined',PAYMENT_FAILED:'Payment blocked or failed',TECHNICAL_FAILURE:'Processing error'};
+const badge=r=>`<span class="badge ${paid(r)?'paid':''}">${esc(statusLabels[r.result.status]||r.result.status||'Needs review')}</span>`;
 const stamp=v=>{const d=new Date(v);return Number.isNaN(d.getTime())?v:d.toLocaleString()};
 const names={VALIDATION_DENIED:'Validation declined',APPROVAL_REJECTED:'Approval declined',PAYMENT_FAILED:'Payment blocked or failed',TECHNICAL_FAILURE:'Processing error',APPROVED_AND_PAID:'Paid — simulated'};
 const group=r=>r.id.startsWith('evals/')?r.id.split('/').slice(0,2).join('/'):'invoice-runs';
@@ -49,10 +50,12 @@ function render(){
 function show(run){
  if(!run){$('detail').innerHTML='<div class="empty">Select an invoice to review its details. Run the invoice workflow, then rebuild this dashboard to populate an empty workspace.</div>';return}
  const r=run.result,i=invoice(run),v=r.validation||{},a=r.approval||{},p=r.payment||{};
- const next=paid(run)?'No action needed for this simulated payment.':r.status==='TECHNICAL_FAILURE'?'Ask the operator to investigate the processing error before rerunning.':r.status==='APPROVAL_REJECTED'?'Review the approval concerns with the authorized approver.':r.status==='PAYMENT_FAILED'?'Confirm missing payment details or investigate the failure before retrying.':'Compare the flagged information with the source invoice and resolve the discrepancy.';
+ const next=paid(run)?'No action needed for this simulated payment.':r.status==='DUPLICATE_SUPPRESSED'?'No payment was attempted; retain this record for audit.':r.status==='HUMAN_REVIEW_REQUIRED'?'Review the invoice history and decide whether an adjustment, credit memo, refund, or rejection is appropriate.':r.status==='TECHNICAL_FAILURE'?'Ask the operator to investigate the processing error before rerunning.':r.status==='APPROVAL_REJECTED'?'Review the approval concerns with the authorized approver.':r.status==='PAYMENT_FAILED'?'Confirm missing payment details or investigate the failure before retrying.':'Compare the flagged information with the source invoice and resolve the discrepancy.';
  const table=(headers,rows)=>`<div class="scroll"><table><thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
  const source=r.ingestion?.source_document?.chunks||[];
- $('detail').innerHTML=`${badge(run)}<h2 style="margin-top:14px">${esc(r.invoice_id||i.invoice_number||'Invoice details')}</h2><div class="callout"><strong>${esc(names[r.status]||r.status)}</strong><p>${esc(r.reason)}</p><strong>Next action</strong><p>${esc(next)}</p></div>
+ const h=r.invoice_history||{};
+ const historySection=h.disposition&&h.disposition!=='NEW'&&h.disposition!=='UNIDENTIFIED'?`<h3>Invoice history</h3><div class="callout"><strong>${esc(h.disposition)}</strong><p>${esc(h.reason)}</p>${h.prior_revision?`<p>Prior revision: ${esc(h.prior_revision)}</p>`:''}${h.prior_amount?`<p>Prior amount: ${money(h.prior_amount,i.currency)}</p>`:''}${h.current_amount?`<p>Current amount: ${money(h.current_amount,i.currency)}</p>`:''}${h.adjustment_amount?`<p>Candidate adjustment: ${money(h.adjustment_amount,i.currency)}</p>`:''}${h.prior_payment_transaction_id?`<p>Prior payment transaction: ${esc(h.prior_payment_transaction_id)}</p>`:''}</div>`:'';
+ $('detail').innerHTML=`${badge(run)}<h2 style="margin-top:14px">${esc(r.invoice_id||i.invoice_number||'Invoice details')}</h2><div class="callout"><strong>${esc(names[r.status]||statusLabels[r.status]||r.status)}</strong><p>${esc(r.reason)}</p><strong>Next action</strong><p>${esc(next)}</p></div>${historySection}
  <div class="facts"><div><span>Vendor</span>${esc(i.vendor)}</div><div><span>Amount due / total</span>${money(i.amount_due??i.invoice_total,i.currency)}</div><div><span>Invoice date</span>${esc(i.invoice_date)}</div><div><span>Due date</span>${esc(i.due_date)}</div></div>
  <h3>Original line items</h3>${table(['Description','Quantity','Unit price','Declared amount'],(i.items||[]).map(x=>[x.item_name,x.quantity,x.unit_price,x.line_amount]))}
  <h3>Totals</h3>${table(['Subtotal','Tax','Shipping','Discount','Invoice total'],[[i.subtotal,i.tax_amount,i.shipping,i.discount,i.invoice_total]])}

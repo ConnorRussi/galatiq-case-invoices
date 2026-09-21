@@ -68,15 +68,15 @@
       "case_id": "invoice_1004_revised_json",
       "invoice_path": "data/invoices/invoice_1004_revised.json",
       "expected": {
-        "workflow_status": "APPROVED_AND_PAID",
-        "stopped_at": "completed",
+        "workflow_status": "HUMAN_REVIEW_REQUIRED",
+        "stopped_at": "approval",
         "validation_status": "VALID",
         "validation_denial_stage": null,
-        "approval_status": "APPROVED",
-        "approval_decision_source": "BUSINESS_RULE_AGENT",
-        "payment_status": "SUCCESS",
-        "vp_invoked": false,
-        "vp_decision": null
+        "approval_status": "HUMAN_REVIEW_REQUIRED",
+        "approval_decision_source": "VP_AGENT",
+        "payment_status": null,
+        "vp_invoked": true,
+        "vp_decision": "HUMAN_REVIEW_REQUIRED"
       }
     },
     {
@@ -192,15 +192,15 @@
       "case_id": "invoice_1011_txt",
       "invoice_path": "data/invoices/invoice_1011.txt",
       "expected": {
-        "workflow_status": "APPROVED_AND_PAID",
-        "stopped_at": "completed",
+        "workflow_status": "HUMAN_REVIEW_REQUIRED",
+        "stopped_at": "approval",
         "validation_status": "VALID",
         "validation_denial_stage": null,
-        "approval_status": "APPROVED",
-        "approval_decision_source": "BUSINESS_RULE_AGENT",
-        "payment_status": "SUCCESS",
-        "vp_invoked": false,
-        "vp_decision": null
+        "approval_status": "HUMAN_REVIEW_REQUIRED",
+        "approval_decision_source": "VP_AGENT",
+        "payment_status": null,
+        "vp_invoked": true,
+        "vp_decision": "HUMAN_REVIEW_REQUIRED"
       }
     },
     {
@@ -222,15 +222,15 @@
       "case_id": "invoice_1012_txt",
       "invoice_path": "data/invoices/invoice_1012.txt",
       "expected": {
-        "workflow_status": "APPROVED_AND_PAID",
-        "stopped_at": "completed",
+        "workflow_status": "HUMAN_REVIEW_REQUIRED",
+        "stopped_at": "approval",
         "validation_status": "VALID",
         "validation_denial_stage": null,
-        "approval_status": "APPROVED",
-        "approval_decision_source": "BUSINESS_RULE_AGENT",
-        "payment_status": "SUCCESS",
-        "vp_invoked": false,
-        "vp_decision": null
+        "approval_status": "HUMAN_REVIEW_REQUIRED",
+        "approval_decision_source": "VP_AGENT",
+        "payment_status": null,
+        "vp_invoked": true,
+        "vp_decision": "HUMAN_REVIEW_REQUIRED"
       }
     },
     {

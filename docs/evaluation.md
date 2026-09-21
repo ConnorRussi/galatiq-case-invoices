@@ -193,6 +193,12 @@ the dollar-symbol mapping, absent-currency default, explicit non-USD
 preservation, conflicting-claim review, and rejection of `PO amendment` as a
 fabricated purchase-order identifier.
 
+Workflow cases share a fresh invoice ledger for the evaluation run and execute
+in manifest order. This makes invoice history part of the truth set:
+`invoice_1004.json` is paid first, while `invoice_1004_revised.json` is expected
+to become `HUMAN_REVIEW_REQUIRED` with a `$4,050.00` adjustment candidate rather
+than creating a second full payment.
+
 ### Synthetic VP workflow corpus
 
 The workflow corpus also contains three deliberately labeled synthetic source
