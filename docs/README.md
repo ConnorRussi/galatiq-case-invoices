@@ -116,6 +116,7 @@ Only `APPROVED_AND_PAID` returns process exit code `0`; other normal terminal re
 Run `python dashboard.py` after producing runs or evaluations. It generates a standalone `dashboard.html` from saved `workflow_result.json` and workflow `summary.json` files under `logs/`. The invoice view gives a reviewer a high-level picture of source text, normalized claims, evidence, validation findings, inventory results, approval/VP reasoning, payment status, and invoice-history decisions. A second view summarizes workflow evaluation results.
 
 The dashboard is display-only. It makes no model or network calls and cannot approve, reject, submit human review, resume a workflow, retry payment, or edit the ledger. The generated page is the place to add a screenshot for a visual reviewer walkthrough; the detailed behavior and artifact contract are documented in [agents/dashboard.md](agents/dashboard.md).
+<img width="1894" height="888" alt="image" src="https://github.com/user-attachments/assets/78b1d8f3-3c3f-4464-a916-bd8ca95ac00e" />
 
 ## Repository Map
 
